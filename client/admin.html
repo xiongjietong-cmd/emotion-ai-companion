@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理面板 — Emotion AI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #f5f5f5; }
+.header { background: #1a1a2e; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+.header h2 { font-size: 18px; }
+.container { max-width: 900px; margin: 20px auto; padding: 0 16px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat-card { background: #fff; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.stat-card .num { font-size: 36px; font-weight: bold; color: #667eea; }
+.stat-card .label { font-size: 13px; color: #999; margin-top: 4px; }
+.card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #eee; font-size: 14px; }
+th { color: #999; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h2>📊 管理面板</h2>
+  <a href="/dashboard.html" style="color:#fff">切换用户后台</a>
+</div>
+<div class="container" id="app"></div>
+<script>
+const token = localStorage.getItem('token');
+if (!token) window.location = '/';
+async function load() {
+  const res = await fetch('/api/admin/stats', { headers: {'Authorization': 'Bearer ' + token} });
+  const d = await res.json();
+  if (!d.ok) { window.location = '/'; }
+  const s = d.stats;
+  document.getElementById('app').innerHTML = 
+    '<div class="stats">' +
+    '<div class="stat-card"><div class="num">' + s.userCount + '</div><div class="label">注册用户</div></div>' +
+    '<div class="stat-card"><div class="num">' + s.botCount + '</div><div class="label">机器人总数</div></div>' +
+    '<div class="stat-card"><div class="num">' + s.msgCount + '</div><div class="label">消息总数</div></div>' +
+    '<div class="stat-card"><div class="num">' + s.wechatCount + '</div><div class="label">微信在线</div></div>' +
+    '<div class="stat-card"><div class="num">' + s.todayMsgs + '</div><div class="label">今日消息</div></div>' +
+    '</div>' +
+    '<div class="card"><h3>用户列表</h3><table><tr><th>ID</th><th>邮箱</th><th>角色</th><th>注册时间</th></tr>' +
+    d.users.map(u => '<tr><td>' + u.id + '</td><td>' + u.email + '</td><td>' + u.role + '</td><td>' + (u.created_at||'').slice(0,10) + '</td></tr>').join('') +
+    '</table></div>';
+}
+load();
+</script>
+</body>
+</html>

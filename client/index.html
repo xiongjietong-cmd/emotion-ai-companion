@@ -1,36 +1,73 @@
-﻿<!DOCTYPE html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>情感 AI 聊天</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emotion AI — 创建你的情感机器人</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; color: #fff; }
+.container { max-width: 420px; margin: 0 auto; padding: 60px 20px; }
+h1 { text-align: center; margin-bottom: 10px; font-size: 28px; }
+.sub { text-align: center; opacity: 0.85; margin-bottom: 30px; }
+.card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 30px; backdrop-filter: blur(10px); }
+input { width: 100%; padding: 12px; margin: 8px 0; border: none; border-radius: 8px; font-size: 16px; background: rgba(255,255,255,0.9); }
+.btn { width: 100%; padding: 14px; margin-top: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; }
+.btn-primary { background: #ffd700; color: #333; }
+.btn-secondary { background: rgba(255,255,255,0.2); color: #fff; margin-top: 6px; }
+.tabs { display: flex; gap: 0; margin-bottom: 20px; }
+.tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; background: rgba(255,255,255,0.1); border: none; color: #fff; font-size: 16px; }
+.tab.active { background: rgba(255,255,255,0.25); font-weight: bold; }
+.error { color: #ff6b6b; margin-top: 8px; display: none; }
+</style>
 </head>
 <body>
-
-  <div class="chat-header">
-    <div class="avatar" id="avatarEmoji">🦋</div>
-    <div class="info">
-      <div class="name" id="aiName">小暖</div>
-      <div class="mood" id="aiMood"><span>😌</span> <span>平静</span></div>
-    </div>
-    <a href="/settings.html" class="header-btn" title="设置">⚙️</a>
-    <button class="header-btn" id="clearBtn" title="清空对话">🗑️</button>
-  </div>
-
-  <div id="emptyState" class="empty-state">
-    <div class="icon">🦋</div>
-    <h2>开始聊天</h2>
-    <p>和我聊聊吧，我会记住你说的话，慢慢了解你。</p>
-  </div>
-
-  <div class="chat-messages" id="chatMessages"></div>
-
-  <div class="chat-input">
-    <textarea id="inputField" rows="1" placeholder="输入消息..." maxlength="2000"></textarea>
-    <button class="send-btn" id="sendBtn" disabled>➤</button>
-  </div>
-
-  <script src="app.js"></script>
+<div class="container">
+<h1>🤖 Emotion AI</h1>
+<p class="sub">创建你自己的情感机器人，接入微信</p>
+<div class="card">
+<div class="tabs">
+<button class="tab active" onclick="switchTab('login')">登录</button>
+<button class="tab" onclick="switchTab('register')">注册</button>
+</div>
+<div id="loginForm">
+  <input type="email" id="loginEmail" placeholder="邮箱">
+  <input type="password" id="loginPassword" placeholder="密码">
+  <p class="error" id="loginError"></p>
+  <button class="btn btn-primary" onclick="login()">登录</button>
+</div>
+<div id="registerForm" style="display:none">
+  <input type="email" id="regEmail" placeholder="邮箱">
+  <input type="password" id="regPassword" placeholder="密码（至少6位）">
+  <p class="error" id="regError"></p>
+  <button class="btn btn-primary" onclick="register()">注册</button>
+</div>
+</div>
+</div>
+<script>
+const API = '';
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('loginForm').style.display = t === 'login' ? 'block' : 'none';
+  document.getElementById('registerForm').style.display = t === 'register' ? 'block' : 'none';
+}
+async function login() {
+  const e = document.getElementById('loginEmail').value;
+  const p = document.getElementById('loginPassword').value;
+  const res = await fetch(API + '/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:e,password:p}) });
+  const d = await res.json();
+  if (d.ok) { localStorage.setItem('token', d.token); localStorage.setItem('user', JSON.stringify(d.user)); window.location = d.user.role === 'admin' ? '/admin.html' : '/dashboard.html'; }
+  else { document.getElementById('loginError').textContent = d.error; document.getElementById('loginError').style.display = 'block'; }
+}
+async function register() {
+  const e = document.getElementById('regEmail').value;
+  const p = document.getElementById('regPassword').value;
+  const res = await fetch(API + '/api/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:e,password:p}) });
+  const d = await res.json();
+  if (d.ok) { localStorage.setItem('token', d.token); localStorage.setItem('user', JSON.stringify(d.user)); window.location = d.user.role === 'admin' ? '/admin.html' : '/dashboard.html'; }
+  else { document.getElementById('regError').textContent = d.error; document.getElementById('regError').style.display = 'block'; }
+}
+</script>
 </body>
 </html>
