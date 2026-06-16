@@ -175,6 +175,7 @@ app.post("/api/bots/:id/wechat-bind", authMiddleware, (req, res) => {
   setSetting("wechat_" + bot.id + "_token", token);
   setSetting("wechat_" + bot.id + "_baseUrl", baseUrl || "https://ilinkai.weixin.qq.com");
   setSetting("wechat_" + bot.id + "_userId", wxUserId || "");
+  setSetting("wx_bot_" + token.split("@")[0], String(bot.id));
   res.json({ ok: true });
 });
 

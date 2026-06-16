@@ -1,8 +1,18 @@
+import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "url";
 
 const STATE_DIR = process.env.WECHAT_STATE_DIR || "D:/Documents/New project 2/.openclaw-state/openclaw-weixin";
-const EMOTION_URL = process.env.EMOTION_URL || "http://127.0.0.1:3000/api/webhook/15";
+// Look up bot ID from SaaS database by WeChat account
+const DB_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data", "emotion-saas.db");
+const DB = (() => { try { return new Database(DB_PATH, {readonly: true}); } catch { return null; } })();
+function getBotIdForAccount(){
+if(!DB)return 1;
+try{const row=DB.prepare("SELECT value FROM settings WHERE key = ?").get("wx_bot_"+ACCOUNT_ID.split("@")[0]);return row?parseInt(row.value):1}catch{return 1}}
+const BOT_ID = getBotIdForAccount();
+const EMOTION_URL = `http://127.0.0.1:3000/api/webhook/${BOT_ID}`;
+console.log("Mapped to bot:",BOT_ID);
 
 // Auto-detect WeChat account
 function findAccount() {
