@@ -1,16 +1,13 @@
-// qr-server.js — 扫码服务器
-// SaaS 端运行，接收扫码请求，调用 OpenClaw 登录，流式返回二维码给前端
-
 import { createServer } from "http";
 import { spawn } from "child_process";
-import { readFileSync, readdirSync, existsSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 
 const PORT = 3002;
 const STATE_DIR = process.env.OPENCLAW_STATE_DIR || join(process.env.HOME || ".", ".openclaw-state");
 const ACCOUNTS_DIR = join(STATE_DIR, "openclaw-weixin", "accounts");
+const OPENCLAW_CMD = process.env.OPENCLAW_CMD || "openclaw";
 
-// 活跃的扫码会话
 const sessions = {};
 
 const server = createServer(async (req, res) => {
@@ -18,35 +15,30 @@ const server = createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") { res.end("{}"); return; }
+  if (req.method === "OPTIONS") { res.end(JSON.stringify({})); return; }
 
   const url = new URL(req.url, "http://localhost");
 
-  // POST /start — 启动扫码
   if (req.method === "POST" && url.pathname === "/start") {
-    const body = await readBody(req);
-    const { botId } = JSON.parse(body);
+    const body = JSON.parse(await readBody(req));
+    const { botId } = body;
     if (!botId) { res.writeHead(400); res.end(JSON.stringify({error:"need botId"})); return; }
 
-    const sessionId = "wx-" + Date.now();
-    sessions[sessionId] = { botId, status: "starting", qrText: "" };
+    const sessionId = "wx" + Date.now();
+    sessions[sessionId] = { botId, status: "waiting", output: "" };
 
-    // 调用 OpenClaw 登录
     const env = { ...process.env, OPENCLAW_STATE_DIR: STATE_DIR };
-    const child = spawn("openclaw", ["channels", "login", "--channel", "openclaw-weixin"], { env, stdio: "pipe" });
+    const child = spawn(OPENCLAW_CMD, ["channels", "login", "--channel", "openclaw-weixin"], { env, stdio: "pipe" });
 
-    let output = "";
     child.stdout.on("data", (chunk) => {
-      output += chunk.toString();
-      // 从输出提取二维码文本
-      const qrMatch = output.match(/https://[^s]+/g);
-      if (qrMatch) sessions[sessionId].qrText = qrMatch[qrMatch.length - 1];
+      sessions[sessionId].output += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      sessions[sessionId].output += chunk.toString();
     });
 
     child.on("close", (code) => {
       if (code === 0) {
-        // 查找新创建的账户文件
         try {
           const files = readdirSync(ACCOUNTS_DIR).filter(f => f.endsWith(".json") && !f.includes("context") && !f.includes("sync"));
           const latest = files.sort().reverse()[0];
@@ -55,7 +47,7 @@ const server = createServer(async (req, res) => {
             sessions[sessionId].status = "done";
             sessions[sessionId].token = data.token;
             sessions[sessionId].wxUserId = data.userId;
-          }
+          } else { sessions[sessionId].status = "error"; }
         } catch(e) { sessions[sessionId].status = "error"; }
       } else {
         sessions[sessionId].status = "error";
@@ -66,14 +58,19 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // GET /status?session=xxx — 查询状态
   if (req.method === "GET" && url.pathname === "/status") {
     const sessionId = url.searchParams.get("session");
     const s = sessions[sessionId];
     if (!s) { res.end(JSON.stringify({status:"not_found"})); return; }
+
+    let qrText = "";
+    // Try to find any URL in the output
+    const urls = s.output.match(/https?:\/\/[^\s"']+/g);
+    if (urls) qrText = urls[urls.length - 1];
+
     res.end(JSON.stringify({
       status: s.status,
-      qrText: s.qrText || "",
+      qrText: qrText,
       token: s.token || "",
       wxUserId: s.wxUserId || "",
       botId: s.botId
@@ -81,7 +78,7 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  res.writeHead(404); res.end("{}");
+  res.writeHead(404); res.end(JSON.stringify({}));
 });
 
 function readBody(req) {
@@ -92,4 +89,4 @@ function readBody(req) {
   });
 }
 
-server.listen(PORT, () => console.log("QR server on port " + PORT));
+server.listen(PORT, () => console.log("QR server on " + PORT));
