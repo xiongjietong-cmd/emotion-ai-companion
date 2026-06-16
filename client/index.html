@@ -3,70 +3,109 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Emotion AI — 创建你的情感机器人</title>
+<title>Emotion AI</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, sans-serif; background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; color: #fff; }
-.container { max-width: 420px; margin: 0 auto; padding: 60px 20px; }
-h1 { text-align: center; margin-bottom: 10px; font-size: 28px; }
-.sub { text-align: center; opacity: 0.85; margin-bottom: 30px; }
-.card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 30px; backdrop-filter: blur(10px); }
-input { width: 100%; padding: 12px; margin: 8px 0; border: none; border-radius: 8px; font-size: 16px; background: rgba(255,255,255,0.9); }
-.btn { width: 100%; padding: 14px; margin-top: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; }
-.btn-primary { background: #ffd700; color: #333; }
-.btn-secondary { background: rgba(255,255,255,0.2); color: #fff; margin-top: 6px; }
-.tabs { display: flex; gap: 0; margin-bottom: 20px; }
-.tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; background: rgba(255,255,255,0.1); border: none; color: #fff; font-size: 16px; }
-.tab.active { background: rgba(255,255,255,0.25); font-weight: bold; }
-.error { color: #ff6b6b; margin-top: 8px; display: none; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f0f2f5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.wrap{display:flex;max-width:900px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.left{flex:1;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:60px 40px;display:flex;flex-direction:column;justify-content:center}
+.left h1{font-size:32px;margin-bottom:16px}
+.left .feat{margin:24px 0;font-size:15px;line-height:2}
+.left .feat span{margin-right:8px}
+.right{flex:1;padding:60px 40px}
+.right h2{font-size:22px;margin-bottom:24px;color:#333}
+.tabs{display:flex;margin-bottom:24px;border-bottom:2px solid #eee}
+.tab{flex:1;text-align:center;padding:12px;cursor:pointer;color:#999;font-size:15px;border:none;background:none;transition:.2s}
+.tab.active{color:#667eea;border-bottom:2px solid #667eea;margin-bottom:-2px;font-weight:600}
+.form{display:none}
+.form.active{display:block}
+input{width:100%;padding:12px 16px;margin:8px 0;border:1px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;transition:.2s}
+input:focus{border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.15)}
+.btn{width:100%;padding:14px;margin-top:16px;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-weight:600;transition:.2s;color:#fff;background:#667eea}
+.btn:hover{background:#5a6fd6}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.msg{font-size:13px;margin-top:8px;min-height:20px;display:none}
+.msg.error{color:#e74c3c;display:block}
+.msg.success{color:#27ae60;display:block}
+@media(max-width:700px){.wrap{flex-direction:column}.left{padding:40px 30px}.right{padding:40px 30px}}
 </style>
 </head>
 <body>
-<div class="container">
+<div class="wrap">
+<div class="left">
 <h1>🤖 Emotion AI</h1>
-<p class="sub">创建你自己的情感机器人，接入微信</p>
-<div class="card">
+<p style="font-size:16px;opacity:.9">创建你自己的情感机器人，接入微信</p>
+<div class="feat">
+<div><span>🧠</span> 长期记忆，越聊越懂你</div>
+<div><span>💕</span> 情绪感知，回应更贴心</div>
+<div><span>🎭</span> 自定义人格，独一无二</div>
+<div><span>📱</span> 微信接入，随时随地</div>
+</div>
+</div>
+<div class="right">
 <div class="tabs">
 <button class="tab active" onclick="switchTab('login')">登录</button>
-<button class="tab" onclick="switchTab('register')">注册</button>
+<button class="tab" onclick="switchTab('reg')">注册</button>
 </div>
-<div id="loginForm">
-  <input type="email" id="loginEmail" placeholder="邮箱">
-  <input type="password" id="loginPassword" placeholder="密码">
-  <p class="error" id="loginError"></p>
-  <button class="btn btn-primary" onclick="login()">登录</button>
-</div>
-<div id="registerForm" style="display:none">
-  <input type="email" id="regEmail" placeholder="邮箱">
-  <input type="password" id="regPassword" placeholder="密码（至少6位）">
-  <p class="error" id="regError"></p>
-  <button class="btn btn-primary" onclick="register()">注册</button>
-</div>
+<form class="form active" id="loginForm" onsubmit="return login()">
+<input type="email" id="loginEmail" placeholder="邮箱地址" required>
+<input type="password" id="loginPassword" placeholder="密码" required>
+<div class="msg" id="loginMsg"></div>
+<button class="btn" type="submit" id="loginBtn">登录</button>
+</form>
+<form class="form" id="regForm" onsubmit="return register()">
+<input type="email" id="regEmail" placeholder="邮箱地址" required>
+<input type="password" id="regPassword" placeholder="密码（至少6位）" required minlength="6">
+<input type="password" id="regConfirm" placeholder="确认密码" required>
+<div class="msg" id="regMsg"></div>
+<button class="btn" type="submit" id="regBtn">注册</button>
+</form>
 </div>
 </div>
 <script>
-const API = '';
-function switchTab(t) {
-  document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('loginForm').style.display = t === 'login' ? 'block' : 'none';
-  document.getElementById('registerForm').style.display = t === 'register' ? 'block' : 'none';
+const API="";
+function switchTab(t){
+document.querySelectorAll(".tab").forEach(e=>e.classList.remove("active"));
+event.target.classList.add("active");
+document.getElementById("loginForm").classList.toggle("active",t==="login");
+document.getElementById("regForm").classList.toggle("active",t==="reg");
+document.getElementById("loginMsg").className="msg";
+document.getElementById("regMsg").className="msg";
 }
-async function login() {
-  const e = document.getElementById('loginEmail').value;
-  const p = document.getElementById('loginPassword').value;
-  const res = await fetch(API + '/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:e,password:p}) });
-  const d = await res.json();
-  if (d.ok) { localStorage.setItem('token', d.token); localStorage.setItem('user', JSON.stringify(d.user)); window.location = d.user.role === 'admin' ? '/admin.html' : '/dashboard.html'; }
-  else { document.getElementById('loginError').textContent = d.error; document.getElementById('loginError').style.display = 'block'; }
+function show(el,text,type){el.textContent=text;el.className="msg "+type}
+function loading(btn,on){btn.disabled=on;btn.textContent=on?"处理中...":(btn.id==="loginBtn"?"登录":"注册")}
+async function login(){
+const e=document.getElementById("loginEmail").value.trim();
+const p=document.getElementById("loginPassword").value;
+const msg=document.getElementById("loginMsg");
+if(!e||!p){show(msg,"请填写完整","error");return false}
+if(!/^[^@]+@[^@]+$/.test(e)){show(msg,"邮箱格式不正确","error");return false}
+loading(document.getElementById("loginBtn"),true);
+try{
+const r=await fetch(API+"/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:e,password:p})});
+const d=await r.json();
+if(d.ok){show(msg,"登录成功","success");localStorage.setItem("token",d.token);localStorage.setItem("user",JSON.stringify(d.user));setTimeout(()=>window.location=d.user.role==="admin"?"/admin.html":"/dashboard.html",300)}
+else{show(msg,d.error,"error");loading(document.getElementById("loginBtn"),false)}
+}catch{show(msg,"网络错误","error");loading(document.getElementById("loginBtn"),false)}
+return false
 }
-async function register() {
-  const e = document.getElementById('regEmail').value;
-  const p = document.getElementById('regPassword').value;
-  const res = await fetch(API + '/api/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:e,password:p}) });
-  const d = await res.json();
-  if (d.ok) { localStorage.setItem('token', d.token); localStorage.setItem('user', JSON.stringify(d.user)); window.location = d.user.role === 'admin' ? '/admin.html' : '/dashboard.html'; }
-  else { document.getElementById('regError').textContent = d.error; document.getElementById('regError').style.display = 'block'; }
+async function register(){
+const e=document.getElementById("regEmail").value.trim();
+const p=document.getElementById("regPassword").value;
+const c=document.getElementById("regConfirm").value;
+const msg=document.getElementById("regMsg");
+if(!e||!p||!c){show(msg,"请填写完整","error");return false}
+if(!/^[^@]+@[^@]+$/.test(e)){show(msg,"邮箱格式不正确","error");return false}
+if(p.length<6){show(msg,"密码至少6位","error");return false}
+if(p!==c){show(msg,"两次密码不一致","error");return false}
+loading(document.getElementById("regBtn"),true);
+try{
+const r=await fetch(API+"/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:e,password:p})});
+const d=await r.json();
+if(d.ok){show(msg,"注册成功，正在跳转...","success");localStorage.setItem("token",d.token);localStorage.setItem("user",JSON.stringify(d.user));setTimeout(()=>window.location=d.user.role==="admin"?"/admin.html":"/dashboard.html",500)}
+else{show(msg,d.error,"error");loading(document.getElementById("regBtn"),false)}
+}catch{show(msg,"网络错误","error");loading(document.getElementById("regBtn"),false)}
+return false
 }
 </script>
 </body>
