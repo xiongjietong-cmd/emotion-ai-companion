@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const services = [
   { name: "SaaS", file: "server/index.js", restartDelay: 3000 },
   { name: "QR", file: "qr-server.js", restartDelay: 2000 },
-  { name: "Bridge", file: "wechat-bridge.js", restartDelay: 5000 }
+  { name: "Bridge", file: "multi-wechat-bridge.js", restartDelay: 5000 }
 ];
 
 function start(service) {
