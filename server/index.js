@@ -18,6 +18,7 @@ import {
 
 import { signToken, authMiddleware, adminMiddleware } from "./auth.js";
 import { rateLimiter, sanitizeInput, errorHandler } from "./security.js";
+
 import { initAI, isReady, chat } from "./ai-adapter.js";
 import { DEFAULT_PERSONALITY, buildSystemPrompt, detectUserEmotion } from "./emotional-engine.js";
 
@@ -37,6 +38,9 @@ const wss = new WebSocketServer({ server });
 app.use(express.json());
 app.use(rateLimiter);
 app.use(express.static(join(__dirname, "..", "client")));
+
+// Health check
+app.get("/api/health", (req, res) => { res.json({ ok: true, time: new Date().toISOString() }); });
 
 // ══════════════════════════════════════════
 // 认证路由

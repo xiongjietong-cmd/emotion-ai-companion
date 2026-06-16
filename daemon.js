@@ -37,6 +37,18 @@ console.log("=== Emotion AI 进程守护启动 ===\n");
 services.forEach(s => start(s));
 
 // 保持进程存活
+
+// Health monitoring
+setInterval(async () => {
+  try {
+    const r = await fetch("http://127.0.0.1:3000/api/health");
+    const d = await r.json();
+    if (!d.ok) console.log("[Health] SaaS unhealthy, will restart...");
+  } catch {
+    console.log("[Health] SaaS unreachable");
+  }
+}, 30000);
+
 process.on("SIGINT", () => {
   console.log("\n正在关闭所有服务...");
   process.exit(0);
