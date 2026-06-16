@@ -3,6 +3,7 @@
 import Database from "better-sqlite3";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import fs from "node:fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "..", "data", "emotion-saas.db");
@@ -28,7 +29,7 @@ function buildHeaders(token) {
 
 function loadAccounts() {
   try {
-    const { readFileSync, readdirSync, existsSync } = require("fs");
+    const { readFileSync, readdirSync, existsSync } = fs;
     if (!existsSync(INDEX_FILE)) return [];
     const ids = JSON.parse(readFileSync(INDEX_FILE, "utf-8"));
     return ids.map(id => {
@@ -56,7 +57,7 @@ async function callApi(baseUrl, endpoint, body, token) {
 
 function saveSync(accountId, syncBuf) {
   try {
-    const { writeFileSync } = require("fs");
+    const { writeFileSync } = fs;
     const syncFile = join(ACCOUNTS_DIR, accountId + ".sync.json");
     writeFileSync(syncFile, JSON.stringify({ get_updates_buf: syncBuf }), "utf-8");
   } catch {}
