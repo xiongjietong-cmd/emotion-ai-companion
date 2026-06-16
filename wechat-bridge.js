@@ -24,7 +24,7 @@ if (process.env.WECHAT_TOKEN && process.env.WECHAT_BASE_URL) {
   TOKEN = account.token;
   BASE_URL = account.baseUrl;
 }
-const SYNC_FILE = path.join(STATE_DIR, "accounts", ACCOUNT_ID + ".sync.json");
+const SYNC_FILE = process.env.WECHAT_SYNC_FILE || path.join(process.cwd(), ACCOUNT_ID + ".sync.json");
 
 // 上次同步游标
 let syncBuf = "";
