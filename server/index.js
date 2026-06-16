@@ -232,7 +232,7 @@ function normalizePersonality(p) {
 }
 
 function isIdentityQuestion(text) {
-  return /你(叫(什么|啥|啥名)?|是谁|什么名字|名字是什么)|怎么称呼你|你的名字/.test(text);
+  return /你叫(什么|啥|啥名|什么名字)|你是谁|你的名字|怎么称呼/.test(text);
 }
 
 async function processMessage({ botId, text, personality, source, senderId }) {
