@@ -170,7 +170,7 @@ app.post("/api/bots/:id/wechat-bind", authMiddleware, (req, res) => {
   if (!bot || bot.user_id !== req.user.id) return res.status(404).json({ error: "机器人不存在" });
   
   const { token, baseUrl, wxUserId } = req.body;
-  const { bindWechat } = require("./database.js")?.bindWechat || (() => {});
+
   // save wechat credentials
   setSetting("wechat_" + bot.id + "_token", token);
   setSetting("wechat_" + bot.id + "_baseUrl", baseUrl || "https://ilinkai.weixin.qq.com");

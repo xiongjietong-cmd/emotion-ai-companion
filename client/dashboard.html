@@ -124,6 +124,28 @@ async function sendChat() {
   if (last) last.outerHTML = '<div class="msg assistant">' + (res.reply || res.error || 'Error') + '</div>';
   box.scrollTop = box.scrollHeight;
 }
+
+async function bindWechat() {
+  document.getElementById('wxBtn').disabled = true;
+  document.getElementById('wxStatus').textContent = '检测中...';
+  const res = await api('/api/bots/' + currentBot + '/wechat-bind', {method:'POST',body:JSON.stringify({})});
+  if (res.ok && res.auto) {
+    document.getElementById('wxStatus').textContent = '已绑定 ' + (res.wxUser || '');
+  } else if (res.ok) {
+    document.getElementById('wxStatus').textContent = '已手动绑定';
+  } else {
+    document.getElementById('wxManual').style.display = 'block';
+    document.getElementById('wxStatus').textContent = '';
+  }
+  document.getElementById('wxBtn').disabled = false;
+}
+async function bindWechatManual() {
+  const t = document.getElementById('wxToken').value;
+  if (!t) return;
+  const res = await api('/api/bots/' + currentBot + '/wechat-bind', {method:'POST',body:JSON.stringify({token:t})});
+  if (res.ok) document.getElementById('wxStatus').textContent = '已绑定';
+}
+async function bindWechat(){const t=document.getElementById("wxToken").value;if(!t)return;const r=await api("/api/bots/"+currentBot+"/wechat-bind",{method:"POST",body:JSON.stringify({token:t})});if(r.ok)document.getElementById("wxStatus").textContent="已绑定"}
 function logout() { localStorage.clear(); window.location = '/'; }
 loadBots();
 </script>
