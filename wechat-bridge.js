@@ -30,7 +30,7 @@ const SYNC_FILE = process.env.WECHAT_SYNC_FILE || path.join(process.cwd(), ACCOU
 let syncBuf = "";
 try {
   syncBuf = JSON.parse(fs.readFileSync(SYNC_FILE, "utf-8")).get_updates_buf || "";
-} catch { syncBuf = ""; }
+} catch { syncBuf = ""; fs.writeFileSync(SYNC_FILE, JSON.stringify({ get_updates_buf: "" }), "utf-8"); }
 
 // API call with proper WeChat headers
 function buildHeaders(token) {
