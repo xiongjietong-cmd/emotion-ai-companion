@@ -8,7 +8,7 @@ import path from "node:path";
 // ─── 配置 ───
 const ACCOUNT_ID = "6ae71321691f-im-bot";
 const STATE_DIR = process.env.WECHAT_STATE_DIR || "D:/Documents/New project 2/.openclaw-state/openclaw-weixin";
-const EMOTION_URL = process.env.EMOTION_URL || "http://127.0.0.1:3000/openclaw/message";
+const EMOTION_URL = process.env.EMOTION_URL || "http://134.175.8.123:3000/openclaw/message";
 
 // 加载账户凭证
 // 优先从环境变量读取，否则从文件
