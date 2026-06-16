@@ -60,6 +60,9 @@ d.users.forEach(u=>{
 h+='<tr><td>'+u.id+'</td><td>'+u.email+'</td><td>'+u.role+'</td><td>'+(u.created_at||"").slice(0,10)+'</td><td>'+(u.last_login||"-")+'</td></tr>';
 });
 h+='</table></div>';
+h+='<div class="card"><h3>机器人列表 ('+d.bots.length+')</h3><table><tr><th>ID</th><th>名称</th><th>所有者</th><th>状态</th><th>微信</th></tr>';
+d.bots.forEach(b=>{h+='<tr><td>'+b.id+'</td><td>'+b.name+'</td><td>'+b.owner+'</td><td>'+(b.active?'<span class="status-dot online"></span>运行中':'<span class="status-dot offline"></span>已停用')+'</td><td>'+(b.hasWechat?'<span class="status-dot online"></span>已绑定':'<span class="status-dot offline"></span>未绑定')+'</td></tr>'});
+h+='</table></div>';
 document.getElementById("app").innerHTML=h;
 })();
 </script>
