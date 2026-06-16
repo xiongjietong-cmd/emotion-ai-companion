@@ -75,7 +75,8 @@ const server = createServer(async (req, res) => {
               s.status = "done";
               s.token = d.bot_token || "";
               s.wxUserId = d.user_id || "";
-              console.log("[qr] login success for " + sessionId);
+              // Dedup: remove old accounts with same userId from OpenClaw
+              dedupAccount(d.user_id, s.token);
               return;
             }
           } catch {}
@@ -117,3 +118,45 @@ function readBody(req) {
 }
 
 server.listen(PORT, () => console.log("QR server on " + PORT));
+
+// Remove duplicate WeChat accounts with same userId, keep only the latest
+function dedupAccount(userId, newToken) {
+  if (!userId) return;
+  try {
+    const { readFileSync, writeFileSync, readdirSync, unlinkSync, existsSync } = require("fs");
+    const { join } = require("path");
+    const stateDir = process.env.OPENCLAW_STATE_DIR || join(process.env.HOME || ".", ".openclaw-state");
+    const accountsDir = join(stateDir, "openclaw-weixin", "accounts");
+    if (!existsSync(accountsDir)) return;
+
+    const files = readdirSync(accountsDir).filter(f => f.endsWith(".json") && !f.includes("context") && !f.includes("sync"));
+    let oldAccountId = null;
+
+    for (const f of files) {
+      try {
+        const data = JSON.parse(readFileSync(join(accountsDir, f), "utf-8"));
+        if (data.userId === userId && data.token !== newToken) {
+          oldAccountId = f.replace(".json", "");
+          break;
+        }
+      } catch {}
+    }
+
+    if (oldAccountId) {
+      // Remove old account file and from index
+      unlinkSync(join(accountsDir, oldAccountId + ".json"));
+      try { unlinkSync(join(accountsDir, oldAccountId + ".sync.json")); } catch {}
+      try { unlinkSync(join(accountsDir, oldAccountId + ".context-tokens.json")); } catch {}
+
+      const indexFile = join(stateDir, "openclaw-weixin", "accounts.json");
+      if (existsSync(indexFile)) {
+        let index = JSON.parse(readFileSync(indexFile, "utf-8"));
+        index = index.filter(id => id !== oldAccountId);
+        writeFileSync(indexFile, JSON.stringify(index, null, 2), "utf-8");
+      }
+      console.log("[qr] removed old account " + oldAccountId + " for userId " + userId);
+    }
+  } catch(e) {
+    console.error("[qr] dedup error:", e.message);
+  }
+}
