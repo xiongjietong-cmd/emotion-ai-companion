@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设置 - 情感 AI</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="settings-page">
+  <div class="settings-header">
+    <a href="/" class="back-btn">←</a>
+    <h1>设置</h1>
+  </div>
+
+  <div class="settings-tabs">
+    <button class="tab active" data-tab="api">API</button>
+    <button class="tab" data-tab="character">人格设定</button>
+    <button class="tab" data-tab="memory">记忆</button>
+  </div>
+
+  <div class="setting-section active" id="tab-api">
+    <div class="setting-group">
+      <h3>DeepSeek 配置</h3>
+      <div class="form-row">
+        <label>API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-..." />
+      </div>
+      <div class="form-row">
+        <label>模型</label>
+        <select id="model">
+          <option value="deepseek-v4-flash" selected>deepseek-v4-flash</option>
+        </select>
+      </div>
+      <p style="font-size:13px;color:#888;margin-bottom:12px;">API Key 仅保存在本地，不会上传</p>
+      <button class="btn-primary" id="saveApiBtn">保存 API 配置</button>
+    </div>
+  </div>
+
+  <div class="setting-section" id="tab-character">
+    <div class="setting-group">
+      <h3>AI 角色设定</h3>
+      <div class="form-row">
+        <label>名字</label>
+        <input type="text" id="charName" placeholder="小暖" />
+      </div>
+      <div class="form-row">
+        <label>说话风格</label>
+        <input type="text" id="speakingStyle" placeholder="温柔细腻，偶尔带点俏皮" />
+      </div>
+      <div class="form-row">
+        <label>背景故事</label>
+        <textarea id="background" placeholder="你是一个善解人意的朋友..." rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <h3>性格特质</h3>
+      <div class="slider-row">
+        <label>温暖度</label>
+        <input type="range" id="traitWarmth" min="0" max="100" value="80" />
+        <span class="value" id="valWarmth">80</span>
+      </div>
+      <div class="slider-row">
+        <label>幽默感</label>
+        <input type="range" id="traitHumor" min="0" max="100" value="50" />
+        <span class="value" id="valHumor">50</span>
+      </div>
+      <div class="slider-row">
+        <label>直率度</label>
+        <input type="range" id="traitDirect" min="0" max="100" value="30" />
+        <span class="value" id="valDirect">30</span>
+      </div>
+      <div class="slider-row">
+        <label>共情力</label>
+        <input type="range" id="traitEmpathy" min="0" max="100" value="90" />
+        <span class="value" id="valEmpathy">90</span>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="saveCharBtn">保存人格设定</button>
+  </div>
+
+  <div class="setting-section" id="tab-memory">
+    <div class="setting-group">
+      <h3>关系状态</h3>
+      <div id="relationshipDisplay">
+        <p style="color:var(--text-light);font-size:14px;">加载中...</p>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <h3>记住的信息</h3>
+      <div id="factsList"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <input type="text" id="newFactKey" placeholder="关键词（如：名字）" style="flex:1;padding:8px 12px;border:1px solid #e8e0d8;border-radius:8px;font-size:14px;" />
+        <input type="text" id="newFactValue" placeholder="值" style="flex:1;padding:8px 12px;border:1px solid #e8e0d8;border-radius:8px;font-size:14px;" />
+        <button id="addFactBtn" style="padding:8px 16px;background:var(--primary);color:white;border:none;border-radius:8px;cursor:pointer;">添加</button>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <h3>危险操作</h3>
+      <button class="btn-primary btn-danger" id="resetChatBtn">清空所有对话记录</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".setting-section").forEach(s => s.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
+    if (tab.dataset.tab === "memory") loadMemory();
+  });
+});
+document.querySelectorAll("input[type=range]").forEach(slider => {
+  const valId = slider.id.replace("trait", "val");
+  const valEl = document.getElementById(valId);
+  if (valEl) slider.addEventListener("input", () => valEl.textContent = slider.value);
+});
+
+function setInputValue(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value ?? "";
+}
+
+function setSliderValue(id, value) {
+  const slider = document.getElementById(id);
+  const valueEl = document.getElementById(id.replace("trait", "val"));
+  if (!slider) return;
+
+  const numeric = Number(value);
+  const percent = Number.isFinite(numeric)
+    ? Math.round(numeric <= 1 ? numeric * 100 : numeric)
+    : Number(slider.value);
+
+  slider.value = Math.max(0, Math.min(100, percent));
+  if (valueEl) valueEl.textContent = slider.value;
+}
+
+async function loadSettings() {
+  const res = await fetch("/api/settings");
+  const data = await res.json();
+  if (data.apiKey === "\u5df2\u8bbe\u7f6e") document.getElementById("apiKey").placeholder = "已设置，输入新值覆盖";
+  document.getElementById("model").value = data.model || "deepseek-v4-flash";
+
+  const personality = data.personality || {};
+  const traits = personality.traits || {};
+  setInputValue("charName", personality.name || "小暖");
+  setInputValue("speakingStyle", personality.speakingStyle || "温柔细腻，偶尔带点俏皮");
+  setInputValue("background", personality.background || "");
+  setSliderValue("traitWarmth", traits.warmth ?? 0.8);
+  setSliderValue("traitHumor", traits.humor ?? 0.5);
+  setSliderValue("traitDirect", traits.directness ?? 0.3);
+  setSliderValue("traitEmpathy", traits.empathy ?? 0.9);
+}
+document.getElementById("saveApiBtn").addEventListener("click", async () => {
+  const apiKey = document.getElementById("apiKey").value.trim();
+  const model = document.getElementById("model").value;
+  if (!apiKey) { showToast("请输入 API Key"); return; }
+  await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKey, model }) });
+  showToast("API 配置已保存");
+  document.getElementById("apiKey").value = "";
+  document.getElementById("apiKey").placeholder = "已设置，输入新值覆盖";
+});
+document.getElementById("saveCharBtn").addEventListener("click", async () => {
+  const personality = {
+    name: document.getElementById("charName").value || "小暖",
+    speakingStyle: document.getElementById("speakingStyle").value || "温柔细腻，偶尔带点俏皮",
+    background: document.getElementById("background").value || "",
+    traits: {
+      warmth: Number(document.getElementById("traitWarmth").value) / 100,
+      humor: Number(document.getElementById("traitHumor").value) / 100,
+      directness: Number(document.getElementById("traitDirect").value) / 100,
+      empathy: Number(document.getElementById("traitEmpathy").value) / 100
+    }
+  };
+  await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ personality }) });
+  showToast("人格设定已保存");
+});
+
+function percent(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "0%";
+  return Math.round(Math.max(0, Math.min(1, n)) * 100) + "%";
+}
+
+function clearChildren(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function renderRelationship(relationship) {
+  const el = document.getElementById("relationshipDisplay");
+  clearChildren(el);
+
+  const card = document.createElement("div");
+  card.className = "relationship-card";
+
+  [
+    ["亲密度", percent(relationship?.intimacy)],
+    ["信任度", percent(relationship?.trust)],
+    ["当前情绪", relationship?.mood || "平静"]
+  ].forEach(([label, value]) => {
+    const stat = document.createElement("div");
+    stat.className = "stat";
+    const labelEl = document.createElement("div");
+    labelEl.className = "label";
+    labelEl.textContent = label;
+    const valueEl = document.createElement("div");
+    valueEl.className = "num";
+    valueEl.textContent = value;
+    stat.append(labelEl, valueEl);
+    card.appendChild(stat);
+  });
+
+  el.appendChild(card);
+}
+
+function renderFacts(facts) {
+  const list = document.getElementById("factsList");
+  clearChildren(list);
+
+  if (!facts || facts.length === 0) {
+    const empty = document.createElement("p");
+    empty.style.color = "var(--text-light)";
+    empty.style.fontSize = "14px";
+    empty.textContent = "还没有记住的信息";
+    list.appendChild(empty);
+    return;
+  }
+
+  facts.forEach(fact => {
+    const item = document.createElement("div");
+    item.className = "fact-item";
+
+    const text = document.createElement("div");
+    const key = document.createElement("div");
+    key.className = "key";
+    key.textContent = fact.fact_key;
+    const value = document.createElement("div");
+    value.className = "value";
+    value.textContent = fact.fact_value;
+    text.append(key, value);
+
+    const del = document.createElement("button");
+    del.className = "del-btn";
+    del.type = "button";
+    del.title = "删除";
+    del.textContent = "×";
+    del.addEventListener("click", () => deleteFact(fact.fact_key));
+
+    item.append(text, del);
+    list.appendChild(item);
+  });
+}
+
+async function loadMemory() {
+  const relationshipEl = document.getElementById("relationshipDisplay");
+  const factsEl = document.getElementById("factsList");
+  relationshipEl.innerHTML = '<p style="color:var(--text-light);font-size:14px;">加载中...</p>';
+  factsEl.innerHTML = "";
+
+  try {
+    const res = await fetch("/api/memory");
+    const data = await res.json();
+    renderRelationship(data.relationship);
+    renderFacts(data.facts);
+  } catch (e) {
+    relationshipEl.innerHTML = '<p style="color:#e74c3c;font-size:14px;">记忆加载失败</p>';
+  }
+}
+
+async function addFact() {
+  const keyEl = document.getElementById("newFactKey");
+  const valueEl = document.getElementById("newFactValue");
+  const key = keyEl.value.trim();
+  const value = valueEl.value.trim();
+  if (!key || !value) {
+    showToast("请填写关键词和值");
+    return;
+  }
+
+  await fetch("/api/memory/fact", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value })
+  });
+  keyEl.value = "";
+  valueEl.value = "";
+  showToast("记忆已添加");
+  await loadMemory();
+}
+
+async function deleteFact(key) {
+  await fetch("/api/memory/fact", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key })
+  });
+  showToast("记忆已删除");
+  await loadMemory();
+}
+
+document.getElementById("addFactBtn").addEventListener("click", addFact);
+
+function showToast(msg) {
+  const old = document.querySelector(".toast"); if (old) old.remove();
+  const el = document.createElement("div"); el.className = "toast"; el.textContent = msg;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2500);
+}
+loadSettings();
+loadMemory();
+</script>
+
+</body>
+</html>

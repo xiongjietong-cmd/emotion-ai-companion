@@ -1,0 +1,16 @@
+{
+  "name": "emotion-ai-chat",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "有记忆的情感 AI 聊天系统",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "express": "^4.21.0",
+    "openai": "^4.73.0",
+    "ws": "^8.18.0"
+  }
+}
