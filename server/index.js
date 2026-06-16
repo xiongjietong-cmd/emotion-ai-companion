@@ -126,6 +126,14 @@ app.get("/api/bots/:id/public", (req, res) => {
 
 
 // 聊天历史
+
+// Bot stats
+app.get("/api/bots/:id/stats", (req, res) => {
+  try {
+    const count = getDb().prepare("SELECT COUNT(*) as c FROM conversations WHERE bot_id = ?").get(req.params.id);
+    res.json({ ok: true, msgCount: count.c });
+  } catch { res.json({ ok: true, msgCount: 0 }); }
+});
 app.get("/api/bots/:id/history", (req, res) => {
   const bot = getBotById(req.params.id);
   if (!bot) return res.status(404).json({ error: "not found" });
