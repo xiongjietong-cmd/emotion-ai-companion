@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 
 const STATE_DIR = process.env.WECHAT_STATE_DIR || "D:/Documents/New project 2/.openclaw-state/openclaw-weixin";
 // Look up bot ID from SaaS database by WeChat account
-const DB_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data", "emotion-saas.db");
+const DB_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "data", "emotion-saas.db");
 const DB = (() => { try { return new Database(DB_PATH, {readonly: true}); } catch { return null; } })();
 
 
