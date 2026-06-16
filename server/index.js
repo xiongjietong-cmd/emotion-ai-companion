@@ -17,6 +17,7 @@ import {
 } from "./database.js";
 
 import { signToken, authMiddleware, adminMiddleware } from "./auth.js";
+import { rateLimiter, sanitizeInput, errorHandler } from "./security.js";
 import { initAI, isReady, chat } from "./ai-adapter.js";
 import { DEFAULT_PERSONALITY, buildSystemPrompt, detectUserEmotion } from "./emotional-engine.js";
 
@@ -34,6 +35,7 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.use(express.json());
+app.use(rateLimiter);
 app.use(express.static(join(__dirname, "..", "client")));
 
 // ══════════════════════════════════════════
@@ -246,7 +248,7 @@ function isIdentityQuestion(text) {
 }
 
 async function processMessage({ botId, text, personality, source, senderId }) {
-  const cleanText = String(text || "").trim();
+  const cleanText = sanitizeInput(text);
   if (!cleanText) throw Object.assign(new Error("消息为空"), { code: "EMPTY_MESSAGE" });
   if (!isReady()) throw Object.assign(new Error("AI 未配置"), { code: "AI_NOT_READY" });
 
@@ -286,6 +288,8 @@ async function processMessage({ botId, text, personality, source, senderId }) {
 // ══════════════════════════════════════════
 // 启动
 // ══════════════════════════════════════════
+
+app.use(errorHandler);
 
 server.listen(PORT, () => {
   console.log("\nEmotion AI SaaS is running");
