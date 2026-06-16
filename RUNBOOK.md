@@ -1,41 +1,26 @@
 # Emotion AI Companion Runbook
 
-## Current Workspace
+## URLs
 
-```text
-D:\Documents\New project 2\projects\project3_Web_情感AI_20260616
-```
+| 环境 | 地址 |
+|------|------|
+| 云端 Chat | http://134.175.8.123:3000 |
+| 云端 Settings | http://134.175.8.123:3000/settings.html |
+| 本地 Chat | http://localhost:3000 |
 
-The old E-drive workspace is no longer active.
+## 云端部署
 
-## Start The Service
+- 服务器：腾讯云 134.175.8.123 (lhins-61qv33f3)
+- 管理：pm2 (pm2 status / pm2 restart emotion-ai)
+- 仓库：https://github.com/xiongjietong-cmd/emotion-ai-companion
 
-Default:
+## 本地开发
 
 ```powershell
-cd "D:\Documents\New project 2\projects\project3_Web_情感AI_20260616"
+cd E:\workspace\projects\project3_Web_情感AI_20260616
 node server/index.js
 ```
 
-With OpenClaw sender protection:
+## 微信桥接
 
-```powershell
-.\start-openclaw.ps1 -OwnerId "your-wechat-sender-id"
-```
-
-Optional custom port:
-
-```powershell
-.\start-openclaw.ps1 -Port 3104 -OwnerId "your-wechat-sender-id"
-```
-
-## URLs
-
-- Chat UI: `http://localhost:3000`
-- Settings UI: `http://localhost:3000/settings.html`
-- OpenClaw health: `http://localhost:3000/openclaw/health`
-- OpenClaw message endpoint: `http://localhost:3000/openclaw/message`
-
-Keep `OPENCLAW_OWNER_ID` enabled before connecting a real WeChat account. The
-current memory database is still single-user, so this prevents other contacts
-from entering your companion memory.
+本地运行：`node wechat-bridge.js`
