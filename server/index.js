@@ -240,6 +240,19 @@ app.post("/api/settings", (req, res) => {
 // 管理员面板
 // ══════════════════════════════════════════
 
+
+// Data export (admin)
+app.get("/api/admin/export", authMiddleware, adminMiddleware, (req, res) => {
+  const users = getAllUsers();
+  const bots = getDb().prepare("SELECT b.*, u.email FROM bots b JOIN users u ON b.user_id = u.id").all();
+  let csv = "Type,ID,Name,Email,Created\n";
+  users.forEach(u => { csv += "User," + u.id + "," + (u.display_name||"") + "," + u.email + "," + (u.created_at||"") + "\n"; });
+  bots.forEach(b => { csv += "Bot," + b.id + "," + b.name + "," + b.email + "," + (b.created_at||"") + "\n"; });
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", "attachment; filename=emotion-ai-export.csv");
+  res.send(csv);
+});
+
 app.get("/api/admin/stats", authMiddleware, adminMiddleware, (req, res) => {
   const stats = getStats();
   const msgStats = getMessageStats(7);
