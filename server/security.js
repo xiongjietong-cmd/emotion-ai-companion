@@ -15,6 +15,10 @@ export function rateLimiter(req, res, next) {
     return next();
   }
   entry.count++;
+  const remaining = Math.max(0, RATE_MAX - entry.count);
+  res.setHeader("X-RateLimit-Limit", RATE_MAX);
+  res.setHeader("X-RateLimit-Remaining", remaining);
+  res.setHeader("X-RateLimit-Reset", Math.ceil((entry.start + RATE_WINDOW) / 1000));
   if (entry.count > RATE_MAX) {
     return res.status(429).json({ error: "请求太频繁，请稍后再试" });
   }
