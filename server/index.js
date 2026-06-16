@@ -295,6 +295,9 @@ async function processMessage({ botId, text, personality, source, senderId }) {
 
 app.use(errorHandler);
 
+// 404 handler
+app.use((req, res) => { res.status(404).sendFile(join(__dirname, "..", "client", "404.html")); });
+
 server.listen(PORT, () => {
   console.log("\nEmotion AI SaaS is running");
   console.log("Chat:     http://localhost:" + PORT);
