@@ -7,15 +7,23 @@ import path from "node:path";
 
 // ─── 配置 ───
 const ACCOUNT_ID = "6ae71321691f-im-bot";
-const STATE_DIR = "D:/Documents/New project 2/.openclaw-state/openclaw-weixin";
-const EMOTION_URL = "http://127.0.0.1:3000/openclaw/message";
+const STATE_DIR = process.env.WECHAT_STATE_DIR || "D:/Documents/New project 2/.openclaw-state/openclaw-weixin";
+const EMOTION_URL = process.env.EMOTION_URL || "http://127.0.0.1:3000/openclaw/message";
 
 // 加载账户凭证
-const account = JSON.parse(
-  fs.readFileSync(path.join(STATE_DIR, "accounts", ACCOUNT_ID + ".json"), "utf-8")
-);
-const TOKEN = account.token;
-const BASE_URL = account.baseUrl;
+// 优先从环境变量读取，否则从文件
+let TOKEN, BASE_URL;
+if (process.env.WECHAT_TOKEN && process.env.WECHAT_BASE_URL) {
+  TOKEN = process.env.WECHAT_TOKEN;
+  BASE_URL = process.env.WECHAT_BASE_URL;
+  console.log("Using env vars for WeChat credentials");
+} else {
+  const account = JSON.parse(
+    fs.readFileSync(path.join(STATE_DIR, "accounts", ACCOUNT_ID + ".json"), "utf-8")
+  );
+  TOKEN = account.token;
+  BASE_URL = account.baseUrl;
+}
 const SYNC_FILE = path.join(STATE_DIR, "accounts", ACCOUNT_ID + ".sync.json");
 
 // 上次同步游标
