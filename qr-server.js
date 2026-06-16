@@ -1,12 +1,23 @@
+// qr-server.js — 正确调用 WeChat get_bot_qrcode API
+
 import { createServer } from "http";
-import { spawn } from "child_process";
-import { readFileSync, readdirSync } from "fs";
-import { join } from "path";
+import { randomBytes } from "crypto";
 
 const PORT = 3002;
-const STATE_DIR = process.env.OPENCLAW_STATE_DIR || join(process.env.HOME || ".", ".openclaw-state");
-const ACCOUNTS_DIR = join(STATE_DIR, "openclaw-weixin", "accounts");
-const OPENCLAW_CMD = process.env.OPENCLAW_CMD || "openclaw";
+const BASE_URL = "https://ilinkai.weixin.qq.com";
+const BOT_TYPE = "3";
+
+function buildHeaders(token) {
+  const uin = randomBytes(4).readUInt32BE(0).toString();
+  return {
+    "Content-Type": "application/json",
+    "AuthorizationType": "ilink_bot_token",
+    "Authorization": "Bearer " + (token || "").trim(),
+    "X-WECHAT-UIN": Buffer.from(uin).toString("base64"),
+    "iLink-App-Id": "bot",
+    "iLink-App-ClientVersion": "131328"
+  };
+}
 
 const sessions = {};
 
@@ -25,36 +36,58 @@ const server = createServer(async (req, res) => {
     if (!botId) { res.writeHead(400); res.end(JSON.stringify({error:"need botId"})); return; }
 
     const sessionId = "wx" + Date.now();
-    sessions[sessionId] = { botId, status: "waiting", output: "" };
 
-    const env = { ...process.env, OPENCLAW_STATE_DIR: STATE_DIR };
-    const child = spawn(OPENCLAW_CMD, ["channels", "login", "--channel", "openclaw-weixin"], { env, stdio: "pipe" });
+    try {
+      // Call WeChat get_bot_qrcode API (same as OpenClaw plugin uses)
+      const result = await fetch(BASE_URL + "/ilink/bot/get_bot_qrcode?bot_type=" + BOT_TYPE, {
+        method: "POST",
+        headers: buildHeaders(""),
+        body: JSON.stringify({ local_token_list: [] })
+      });
+      const data = await result.json();
+      console.log("[qr-debug] get_bot_qrcode:", JSON.stringify(data).slice(0, 300));
 
-    child.stdout.on("data", (chunk) => {
-      sessions[sessionId].output += chunk.toString();
-    });
-    child.stderr.on("data", (chunk) => {
-      sessions[sessionId].output += chunk.toString();
-    });
+      const qrcode = data.qrcode || "";
+      const qrUrl = data.qrcode_img_content || data.qr_url || "";
 
-    child.on("close", (code) => {
-      if (code === 0) {
-        try {
-          const files = readdirSync(ACCOUNTS_DIR).filter(f => f.endsWith(".json") && !f.includes("context") && !f.includes("sync"));
-          const latest = files.sort().reverse()[0];
-          if (latest) {
-            const data = JSON.parse(readFileSync(join(ACCOUNTS_DIR, latest), "utf-8"));
-            sessions[sessionId].status = "done";
-            sessions[sessionId].token = data.token;
-            sessions[sessionId].wxUserId = data.userId;
-          } else { sessions[sessionId].status = "error"; }
-        } catch(e) { sessions[sessionId].status = "error"; }
-      } else {
-        sessions[sessionId].status = "error";
+      if (!qrcode && !data.qr_url) {
+        res.writeHead(500);
+        res.end(JSON.stringify({error:"No QR: " + JSON.stringify(data)}));
+        return;
       }
-    });
 
-    res.end(JSON.stringify({ ok: true, sessionId }));
+      sessions[sessionId] = {
+        botId, status: "scanning", qrUrl: qrUrl,
+        qrcode: qrcode, token: null, wxUserId: null
+      };
+
+      // Background polling for scan completion
+      (async function poll() {
+        for (let i = 0; i < 60; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const s = sessions[sessionId];
+          if (!s || s.status !== "scanning") return;
+          try {
+            const r = await fetch(BASE_URL + "/ilink/bot/get_qrcode_status?qrcode=" + s.qrcode, { method: "GET", headers: buildHeaders("") });
+            const d = await r.json();
+            console.log("[qr-poll] status:", JSON.stringify(d).slice(0,100));
+            if (d.status === "confirmed" || d.bot_token) {
+              s.status = "done";
+              s.token = d.bot_token || "";
+              s.wxUserId = d.user_id || "";
+              console.log("[qr] login success for " + sessionId);
+              return;
+            }
+          } catch {}
+        }
+        sessions[sessionId].status = "timeout";
+      })();
+
+      res.end(JSON.stringify({ ok: true, sessionId }));
+    } catch(e) {
+      res.writeHead(500);
+      res.end(JSON.stringify({error:e.message}));
+    }
     return;
   }
 
@@ -63,17 +96,11 @@ const server = createServer(async (req, res) => {
     const s = sessions[sessionId];
     if (!s) { res.end(JSON.stringify({status:"not_found"})); return; }
 
-    let qrText = "";
-    // Try to find any URL in the output
-    const urls = s.output.match(/https?:\/\/[^\s"']+/g);
-    if (urls) qrText = urls[urls.length - 1];
+    // Status polling happens in background, started after QR is obtained
 
     res.end(JSON.stringify({
-      status: s.status,
-      qrText: qrText,
-      token: s.token || "",
-      wxUserId: s.wxUserId || "",
-      botId: s.botId
+      status: s.status, qrText: s.qrUrl || "",
+      token: s.token || "", wxUserId: s.wxUserId || "", botId: s.botId
     }));
     return;
   }
