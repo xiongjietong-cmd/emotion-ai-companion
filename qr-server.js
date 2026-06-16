@@ -45,8 +45,7 @@ const server = createServer(async (req, res) => {
         body: JSON.stringify({ local_token_list: [] })
       });
       const data = await result.json();
-      console.log("[qr-debug] get_bot_qrcode:", JSON.stringify(data).slice(0, 300));
-
+      
       const qrcode = data.qrcode || "";
       const qrUrl = data.qrcode_img_content || data.qr_url || "";
 
@@ -63,15 +62,14 @@ const server = createServer(async (req, res) => {
 
       // Background polling for scan completion
       (async function poll() {
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 30; i++) {
           await new Promise(r => setTimeout(r, 2000));
           const s = sessions[sessionId];
           if (!s || s.status !== "scanning") return;
           try {
             const r = await fetch(BASE_URL + "/ilink/bot/get_qrcode_status?qrcode=" + s.qrcode, { method: "GET", headers: buildHeaders("") });
             const d = await r.json();
-            console.log("[qr-poll] status:", JSON.stringify(d).slice(0,100));
-            if (d.status === "confirmed" || d.bot_token) {
+                        if (d.status === "confirmed" || d.bot_token) {
               s.status = "done";
               s.token = d.bot_token || "";
               s.wxUserId = d.user_id || "";
