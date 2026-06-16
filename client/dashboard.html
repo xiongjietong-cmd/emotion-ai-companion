@@ -100,5 +100,6 @@ function pollQR(){(async function loop(){const r=await fetch("http://localhost:3
 async function delBot(id){if(!confirm("确定删除？此操作不可恢复"))return;await A("/api/bots/"+id,{method:"DELETE"});if(C===id){C=null;document.getElementById("detail").style.display="none";document.getElementById("empty").style.display="block"}L()}
 L();
 </script>
+<footer style="text-align:center;padding:24px;color:#94a3b8;font-size:13px">© 2026 Emotion AI</footer>
 </body>
 </html>
