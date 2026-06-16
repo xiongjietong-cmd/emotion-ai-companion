@@ -17,7 +17,7 @@ import {
 } from "./database.js";
 
 import { signToken, authMiddleware, adminMiddleware } from "./auth.js";
-import { rateLimiter, sanitizeInput, errorHandler } from "./security.js";
+import { rateLimiter, sanitizeInput, errorHandler, validateBody } from "./security.js";
 
 import { initAI, isReady, chat } from "./ai-adapter.js";
 import { DEFAULT_PERSONALITY, buildSystemPrompt, detectUserEmotion } from "./emotional-engine.js";
@@ -37,6 +37,7 @@ const wss = new WebSocketServer({ server });
 
 app.use(express.json());
 app.use(rateLimiter);
+app.use(validateBody(2000));
 
 // Request logger
 app.use((req, res, next) => {

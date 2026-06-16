@@ -22,6 +22,22 @@ export function rateLimiter(req, res, next) {
 }
 
 // 输入清理
+// 请求体验证
+export function validateBody(maxLen = 2000) {
+  return (req, res, next) => {
+    if (req.body && typeof req.body.text === "string" && req.body.text.length > maxLen) {
+      return res.status(400).json({ error: "消息过长，最多" + maxLen + "字" });
+    }
+    if (req.body && typeof req.body.email === "string" && req.body.email.length > 254) {
+      return res.status(400).json({ error: "邮箱过长" });
+    }
+    if (req.body && typeof req.body.password === "string" && req.body.password.length > 128) {
+      return res.status(400).json({ error: "密码过长" });
+    }
+    next();
+  };
+}
+
 export function sanitizeInput(text) {
   if (typeof text !== "string") return "";
   return text
