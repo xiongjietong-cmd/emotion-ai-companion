@@ -37,6 +37,18 @@ const wss = new WebSocketServer({ server });
 
 app.use(express.json());
 app.use(rateLimiter);
+
+// Request logger
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const ms = Date.now() - start;
+    if (req.path.startsWith("/api/")) {
+      console.log("[" + new Date().toLocaleTimeString() + "] " + req.method + " " + req.path + " " + res.statusCode + " " + ms + "ms");
+    }
+  });
+  next();
+});
 app.use(express.static(join(__dirname, "..", "client")));
 
 // Health check
