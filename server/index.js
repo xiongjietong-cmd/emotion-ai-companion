@@ -118,6 +118,15 @@ app.get("/api/bots/:id/public", (req, res) => {
 // 聊天（Web）
 // ══════════════════════════════════════════
 
+
+// 聊天历史
+app.get("/api/bots/:id/history", (req, res) => {
+  const bot = getBotById(req.params.id);
+  if (!bot) return res.status(404).json({ error: "not found" });
+  const messages = getRecentMessages(req.params.id, 50);
+  res.json({ ok: true, messages });
+});
+
 app.post("/api/chat/:botId", async (req, res) => {
   try {
     const bot = getBotById(req.params.botId);
