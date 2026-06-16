@@ -125,19 +125,39 @@ async function sendChat() {
   box.scrollTop = box.scrollHeight;
 }
 
-async function bindWechat() {
-  document.getElementById('wxBtn').disabled = true;
-  document.getElementById('wxStatus').textContent = '检测中...';
-  const res = await api('/api/bots/' + currentBot + '/wechat-bind', {method:'POST',body:JSON.stringify({})});
-  if (res.ok && res.auto) {
-    document.getElementById('wxStatus').textContent = '已绑定 ' + (res.wxUser || '');
-  } else if (res.ok) {
-    document.getElementById('wxStatus').textContent = '已手动绑定';
-  } else {
-    document.getElementById('wxManual').style.display = 'block';
-    document.getElementById('wxStatus').textContent = '';
-  }
-  document.getElementById('wxBtn').disabled = false;
+let qrSession = null;
+async function startQR() {
+  document.getElementById('qrBtn').disabled = true;
+  document.getElementById('qrStatus').textContent = '生成二维码...';
+  const res = await fetch('http://localhost:3002/start', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({botId:currentBot})
+  });
+  const d = await res.json();
+  if (!d.ok) { alert(d.error); return; }
+  qrSession = d.sessionId;
+  pollQR();
+}
+function pollQR() {
+  const poll = async () => {
+    const res = await fetch('http://localhost:3002/status?session=' + qrSession);
+    const d = await res.json();
+    if (d.status === 'done') {
+      document.getElementById('qrStatus').textContent = '已绑定！';
+      document.getElementById('qrBox').style.display = 'none';
+      document.getElementById('qrBtn').disabled = false;
+      api('/api/bots/'+currentBot+'/wechat-bind',{method:'POST',body:JSON.stringify({token:d.token,wxUserId:d.wxUserId})});
+      return;
+    }
+    if (d.qrText) {
+      document.getElementById('qrBox').style.display = 'block';
+      document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(d.qrText);
+      document.getElementById('qrStatus').textContent = '等待扫码...';
+    }
+    setTimeout(poll, 2000);
+  };
+  poll();
+}  document.getElementById('wxBtn').disabled = false;
 }
 async function bindWechatManual() {
   const t = document.getElementById('wxToken').value;
