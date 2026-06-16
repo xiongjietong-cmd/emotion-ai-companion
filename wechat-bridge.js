@@ -7,12 +7,7 @@ const STATE_DIR = process.env.WECHAT_STATE_DIR || "D:/Documents/New project 2/.o
 // Look up bot ID from SaaS database by WeChat account
 const DB_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data", "emotion-saas.db");
 const DB = (() => { try { return new Database(DB_PATH, {readonly: true}); } catch { return null; } })();
-function getBotIdForAccount(){
-if(!DB)return 1;
-try{const row=DB.prepare("SELECT value FROM settings WHERE key = ?").get("wx_bot_"+ACCOUNT_ID.split("@")[0]);return row?parseInt(row.value):1}catch{return 1}}
-const BOT_ID = getBotIdForAccount();
-const EMOTION_URL = `http://127.0.0.1:3000/api/webhook/${BOT_ID}`;
-console.log("Mapped to bot:",BOT_ID);
+
 
 // Auto-detect WeChat account
 function findAccount() {
@@ -30,6 +25,19 @@ function findAccount() {
 }
 
 const ACCOUNT_ID = findAccount();
+
+// Look up which bot this account belongs to
+function getBotIdForAccount(){
+  if(!DB) return 1;
+  const key = "wx_bot_" + ACCOUNT_ID.split("@")[0];
+  try {
+    const row = DB.prepare("SELECT value FROM settings WHERE key = ?").get(key);
+    return row ? parseInt(row.value) : 1;
+  } catch { return 1; }
+}
+const BOT_ID = getBotIdForAccount();
+console.log("Mapped to bot:", BOT_ID);
+const EMOTION_URL = "http://127.0.0.1:3000/api/webhook/" + BOT_ID;
 const account = JSON.parse(fs.readFileSync(path.join(STATE_DIR, "accounts", ACCOUNT_ID + ".json"), "utf-8"));
 const TOKEN = account.token;
 const BASE_URL = account.baseUrl;

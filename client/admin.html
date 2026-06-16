@@ -3,50 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>管理面板 — Emotion AI</title>
+<title>管理面板</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, sans-serif; background: #f5f5f5; }
-.header { background: #1a1a2e; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
-.header h2 { font-size: 18px; }
-.container { max-width: 900px; margin: 20px auto; padding: 0 16px; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
-.stat-card { background: #fff; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.stat-card .num { font-size: 36px; font-weight: bold; color: #667eea; }
-.stat-card .label { font-size: 13px; color: #999; margin-top: 4px; }
-.card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #eee; font-size: 14px; }
-th { color: #999; font-weight: 500; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:#f0f2f5}
+.header{background:#1a1a2e;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+.header h2{font-size:18px}
+.header a{color:#8892b0;text-decoration:none;font-size:14px}
+.container{max-width:960px;margin:20px auto;padding:0 16px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:12px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:.2s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.stat-card .num{font-size:40px;font-weight:700;color:#667eea}
+.stat-card .label{font-size:13px;color:#999;margin-top:4px}
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.card h3{margin-bottom:12px;color:#333}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:12px 10px;border-bottom:1px solid #eee;font-size:14px}
+th{color:#999;font-weight:500;font-size:12px;text-transform:uppercase}
+tr:hover{background:#f8f9ff}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.online{background:#27ae60}
+.offline{background:#e74c3c}
+.empty{text-align:center;color:#999;padding:40px}
 </style>
 </head>
 <body>
 <div class="header">
-  <h2>📊 管理面板</h2>
-  <a href="/dashboard.html" style="color:#fff">切换用户后台</a>
+<h2>管理面板</h2>
+<div>
+<a href="/dashboard.html">用户后台</a>
+<span style="color:#667eea;margin:0 8px">|</span>
+<a href="/">首页</a>
 </div>
-<div class="container" id="app"></div>
+</div>
+<div class="container" id="app"><div class="empty">加载中...</div></div>
 <script>
-const token = localStorage.getItem('token');
-if (!token) window.location = '/';
-async function load() {
-  const res = await fetch('/api/admin/stats', { headers: {'Authorization': 'Bearer ' + token} });
-  const d = await res.json();
-  if (!d.ok) { window.location = '/'; }
-  const s = d.stats;
-  document.getElementById('app').innerHTML = 
-    '<div class="stats">' +
-    '<div class="stat-card"><div class="num">' + s.userCount + '</div><div class="label">注册用户</div></div>' +
-    '<div class="stat-card"><div class="num">' + s.botCount + '</div><div class="label">机器人总数</div></div>' +
-    '<div class="stat-card"><div class="num">' + s.msgCount + '</div><div class="label">消息总数</div></div>' +
-    '<div class="stat-card"><div class="num">' + s.wechatCount + '</div><div class="label">微信在线</div></div>' +
-    '<div class="stat-card"><div class="num">' + s.todayMsgs + '</div><div class="label">今日消息</div></div>' +
-    '</div>' +
-    '<div class="card"><h3>用户列表</h3><table><tr><th>ID</th><th>邮箱</th><th>角色</th><th>注册时间</th></tr>' +
-    d.users.map(u => '<tr><td>' + u.id + '</td><td>' + u.email + '</td><td>' + u.role + '</td><td>' + (u.created_at||'').slice(0,10) + '</td></tr>').join('') +
-    '</table></div>';
-}
-load();
+const T=localStorage.getItem("token");
+if(!T)location="/";
+(async function(){
+const r=await fetch("/api/admin/stats",{headers:{Authorization:"Bearer "+T}});
+const d=await r.json();
+if(!d.ok){location="/";return}
+const s=d.stats;
+let h="";
+h+='<div class="stats">';
+h+='<div class="stat-card"><div class="num">'+s.userCount+'</div><div class="label">注册用户</div></div>';
+h+='<div class="stat-card"><div class="num">'+s.botCount+'</div><div class="label">机器人总数</div></div>';
+h+='<div class="stat-card"><div class="num">'+s.msgCount+'</div><div class="label">消息总数</div></div>';
+h+='<div class="stat-card"><div class="num">'+s.wechatCount+'</div><div class="label"><span class="status-dot '+(s.wechatCount>0?"online":"offline")+'"></span>微信在线</div></div>';
+h+='<div class="stat-card"><div class="num">'+s.todayMsgs+'</div><div class="label">今日消息</div></div>';
+h+='</div>';
+h+='<div class="card"><h3>用户列表 ('+d.users.length+')</h3>';
+h+='<table><tr><th>ID</th><th>邮箱</th><th>角色</th><th>注册时间</th><th>最近登录</th></tr>';
+d.users.forEach(u=>{
+h+='<tr><td>'+u.id+'</td><td>'+u.email+'</td><td>'+u.role+'</td><td>'+(u.created_at||"").slice(0,10)+'</td><td>'+(u.last_login||"-")+'</td></tr>';
+});
+h+='</table></div>';
+document.getElementById("app").innerHTML=h;
+})();
 </script>
 </body>
 </html>
