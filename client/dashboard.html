@@ -22,6 +22,14 @@ input, textarea { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #
 .bot-card { border: 1px solid #eee; border-radius: 8px; padding: 16px; cursor: pointer; transition: 0.2s; }
 .bot-card:hover { border-color: #667eea; }
 .bot-card.active { border-color: #667eea; background: #f0f0ff; }
+
+.chat { border: 1px solid #eee; border-radius: 8px; height: 300px; overflow-y: auto; padding: 12px; background: #fafafa; margin-top: 12px; }
+.chat .msg { margin-bottom: 8px; padding: 8px 12px; border-radius: 12px; max-width: 80%; }
+.chat .user { background: #667eea; color: #fff; margin-left: auto; }
+.chat .assistant { background: #e8e8e8; color: #333; }
+.chat-input { display: flex; gap: 8px; margin-top: 8px; }
+.chat-input input { flex: 1; }
+.loading { opacity: 0.5; }
 </style>
 </head>
 <body>
@@ -45,12 +53,24 @@ input, textarea { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #
       <input id="personaWarmth" placeholder="温暖度 0-1" type="number" min="0" max="1" step="0.1" style="width:100px">
       <button class="btn btn-primary btn-sm" onclick="savePersonality()">保存</button>
     </div>
-    <p style="margin-top:12px;font-size:13px;color:#666">微信绑定：粘贴微信凭证 token 即可接入</p>
-    <div class="flex">
-      <input id="wechatToken" placeholder="微信 Token" style="flex:1">
-      <button class="btn btn-primary btn-sm" onclick="bindWechat()">绑定微信</button>
+    <div style="margin-top:12px;padding:12px;background:#f0f4ff;border-radius:8px;border:1px solid #d0d8ff">
+    <strong>📱 微信扫码绑定</strong>
+    <ol style="margin:8px 0;font-size:13px;color:#444;padding-left:18px;">
+      <li>运行扫码登录<br><code style="background:#e8e8e8;padding:2px 6px;border-radius:3px;">openclaw channels login --channel openclaw-weixin</code></li>
+      <li>手机微信扫码确认</li>
+      <li>运行同步命令<br><code style="background:#e8e8e8;padding:2px 6px;border-radius:3px;">node sync-wechat.js <span id="syncBotId">?</span></code></li>
+    </ol>
+    <button class="btn btn-primary btn-sm" onclick="toggleWechatHelp()">了解更多</button>
+  </div>
+  
+  <div id="chatArea" style="display:none">
+    <div class="chat" id="chatBox"></div>
+    <div class="chat-input">
+      <input id="chatInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="btn btn-primary btn-sm" onclick="sendChat()">发送</button>
     </div>
   </div>
+</div>
 </div>
 <script>
 const API = '';
@@ -79,16 +99,30 @@ async function selectBot(id) {
   document.getElementById('detailName').textContent = d.name;
   document.getElementById('personaName').value = d.personality.name || '';
   document.getElementById('personaWarmth').value = d.personality.traits?.warmth || 0.8;
+  document.getElementById('chatArea').style.display = 'block';
+  document.getElementById('chatBox').innerHTML = '';
+  document.getElementById('syncBotId').textContent = id;
 }
 async function savePersonality() {
   const p = { name: document.getElementById('personaName').value, traits: { warmth: parseFloat(document.getElementById('personaWarmth').value) } };
   await api('/api/bots/' + currentBot, { method:'PUT', body:JSON.stringify({personality: p}) });
   alert('已保存');
 }
-async function bindWechat() {
-  const t = document.getElementById('wechatToken').value;
-  await api('/api/bots/' + currentBot + '/wechat-bind', { method:'POST', body:JSON.stringify({token: t}) });
-  alert('已绑定');
+function toggleWechatHelp() { alert('1. 在终端运行: openclaw channels login --channel openclaw-weixin\n2. 扫码确认\n3. 运行: node sync-wechat.js ' + currentBot + '\n4. 桥接自动接管'); }
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || !currentBot) return;
+  input.value = '';
+  const box = document.getElementById('chatBox');
+  box.innerHTML += '<div class="msg user">' + text + '</div>';
+  box.innerHTML += '<div class="msg assistant loading">...</div>';
+  box.scrollTop = box.scrollHeight;
+  const res = await api('/api/chat/' + currentBot, { method:'POST', body:JSON.stringify({text}) });
+  const last = box.querySelector('.loading');
+  if (last) last.outerHTML = '<div class="msg assistant">' + (res.reply || res.error || 'Error') + '</div>';
+  box.scrollTop = box.scrollHeight;
 }
 function logout() { localStorage.clear(); window.location = '/'; }
 loadBots();
