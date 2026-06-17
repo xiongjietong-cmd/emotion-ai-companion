@@ -3,103 +3,48 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Emotion AI</title>
+<title>Dashboard</title>
 <style>
-:root{--primary:#6366f1;--primary-light:#818cf8;--bg:#f8fafc;--card:#fff;--text:#1e293b;--sub:#94a3b8;--border:#e2e8f0;--danger:#ef4444;--success:#22c55e;--shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04)}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Inter",-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-nav{background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:10}
-nav h1{font-size:18px;font-weight:600;color:var(--primary)}
-nav .nav-links{display:flex;gap:16px;align-items:center}
-.btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:500;transition:all .15s}
-.btn-primary{background:var(--primary);color:#fff}
-.btn-primary:hover{background:var(--primary-light);transform:translateY(-1px)}
-.btn-danger{background:none;color:var(--danger);border:1px solid var(--danger)}
-.btn-danger:hover{background:var(--danger);color:#fff}
-.btn-sm{padding:6px 12px;font-size:13px}
-.main{max-width:960px;margin:0 auto;padding:24px 16px}
-.grid{display:grid;grid-template-columns:300px 1fr;gap:24px;align-items:start}
-.card{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:16px}
-.card h2{font-size:16px;margin-bottom:12px}
-input,select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;transition:border-color .15s}
-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
-.flex{display:flex;gap:8px}
-.bot-item{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:8px;cursor:pointer;transition:all .2s ease;margin-bottom:4px}.bot-item:hover{transform:translateX(4px)}
-.bot-item:hover{background:#f1f5f9}
-.bot-item.active{background:#eef2ff;border:1px solid var(--primary-light)}
-.bot-item .name{font-weight:500}
-.bot-item .id{font-size:12px;color:var(--sub)}
-.chat-area{border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;height:400px}
-.chat-msgs{flex:1;overflow-y:auto;padding:16px;background:#fafbfc}
-.chat-msgs .msg{margin-bottom:12px;animation:fadeIn .2s ease}
-.chat-msgs .bubble{padding:10px 14px;border-radius:12px;max-width:85%;line-height:1.5;font-size:14px;word-break:break-word}
-.chat-msgs .user .bubble{background:var(--primary);color:#fff;margin-left:auto}
-.chat-msgs .assistant .bubble{background:#f1f5f9;border:1px solid var(--border)}
-.chat-input-area{border-top:1px solid var(--border);padding:12px;display:flex;gap:8px;background:var(--card)}
-.chat-input-area input{flex:1}
-.wx-box{background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #c7d2fe;border-radius:10px;padding:14px;margin-top:12px}
-.wx-box .wx-title{font-weight:600;font-size:14px;margin-bottom:8px;color:var(--primary)}
-#qrBox{text-align:center;margin-top:10px;display:none}
-#qrBox img{width:180px;height:180px;border-radius:8px;box-shadow:var(--shadow)}
-.tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:500}
-.tag-on{background:#dcfce7;color:#166534}
-.tag-off{background:#fef2f2;color:#991b1b}
-@media(max-width:768px){.grid{grid-template-columns:1fr}.chat-area{height:300px}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}.loading-dot{animation:pulse 1.5s ease-in-out infinite}</style>
+body{font-family:sans-serif;background:#f5f5f5}
+.header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:16px 24px;display:flex;justify-content:space-between}
+.btn{padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:bold}
+.btn-primary{background:#ffd700}
+.btn-danger{background:#e74c3c;color:#fff}
+.container{max-width:800px;margin:20px auto;padding:0 16px}
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+input{padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+.flex{display:flex;gap:10px;align-items:center}
+.bot-card{display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer}
+.bot-card:hover,.bot-card.active{border-color:#667eea;background:#f0f0ff}
+.chat-box{border:1px solid #eee;border-radius:8px;height:300px;overflow-y:auto;padding:12px;background:#fafafa;margin-top:12px}
+.msg{margin-bottom:8px;padding:8px 12px;border-radius:12px;max-width:80%}
+.msg.user{background:#667eea;color:#fff;margin-left:auto}
+.msg.assistant{background:#e8e8e8}
+.chat-row{display:flex;gap:8px;margin-top:8px}
+.chat-row input{flex:1}
+</style>
 </head>
 <body>
-<nav>
-<h1>🤖 Emotion AI</h1>
-<div class="nav-links">
-<span id="navUser" style="font-size:13px;color:var(--sub)"></span>
-<button class="btn btn-danger btn-sm" onclick="logout()">退出</button>
-</div>
-</nav>
-<div class="main">
-<div class="grid">
-<div>
-<div class="card"><h2>🤖 我的机器人</h2>
-<div class="flex" style="margin-bottom:12px"><input id="botName" placeholder="新机器人名字"><button class="btn btn-primary" onclick="create()">创建</button></div>
-<div id="list"></div>
-</div>
-<div class="wx-box">
-<div class="wx-title">📱 微信绑定</div>
-<div style="margin-bottom:8px"><button class="btn btn-primary btn-sm" onclick="startQR()">扫码绑定</button><span id="qrStatus" style="margin-left:8px;font-size:13px;color:var(--sub)"></span></div>
-<div id="qrBox"><img id="qrImg"><p style="font-size:12px;color:var(--sub);margin-top:6px">手机微信扫码</p></div>
-</div>
-</div>
-<div>
-<div id="detail" style="display:none">
-<div class="card" style="margin-bottom:8px">
-<div style="display:flex;justify-content:space-between;align-items:center"><h2 id="detailName"></h2><span id="wxTag"></span></div>
-<div class="flex" style="margin-top:8px"><input id="pName" placeholder="名字" style="flex:1"><input id="pWarmth" type="number" min="0" max="1" step="0.1" value="0.8" style="width:70px" title="温暖度"><button class="btn btn-primary btn-sm" onclick="saveP()">保存</button></div>
-</div>
-<div class="chat-area">
-<div class="chat-msgs" id="msgs"><div style="text-align:center;color:var(--sub);margin-top:60px">选择一个机器人开始聊天</div></div>
-<div class="chat-input-area"><input id="chatIn" placeholder="输入消息..." onkeydown="if(event.key==='Enter')send()"><button class="btn btn-primary btn-sm" onclick="send()">发送</button></div>
-</div>
-</div>
-<div id="empty" style="text-align:center;color:var(--sub);padding:60px 0">👈 选择或创建一个机器人</div>
-</div>
-</div>
+<div class="header"><h2>Dashboard</h2><button class="btn btn-danger" onclick="logout()">退出</button></div>
+<div class="container">
+<div class="card"><h3>创建机器人</h3><div class="flex"><input id="botName" placeholder="机器人名字" style="flex:1"><button class="btn btn-primary" onclick="createBot()">创建</button></div><div style="background:#f0f4ff;border:1px solid #d0d8ff;border-radius:8px;padding:12px;margin-top:12px"><strong>微信绑定</strong><div style="margin-top:8px"><button class="btn btn-primary" onclick="startQR()">扫码绑定</button><span id="qrStatus" style="font-size:12px;margin-left:8px"></span></div><div id="qrBox" style="display:none;margin-top:8px;text-align:center"><img id="qrImg" style="width:200px;height:200px;border:1px solid #eee"><p style="font-size:12px;color:#666">手机微信扫码，自动绑定</p></div></div><span id="wxStatus" style="font-size:12px"></span></div></div></div></div>
+<div id="botList"></div>
+<div id="detail" class="card" style="display:none"><h3 id="detailName"></h3><div class="flex" style="margin-bottom:12px"><input id="pName" placeholder="名字"><input id="pWarmth" type="number" min="0" max="1" step="0.1" value="0.8" style="width:80px"><button class="btn btn-primary" onclick="saveP()" style="font-size:12px">保存</button></div>
+<div class="chat-box" id="chatBox"></div>
+<div class="chat-row"><input id="chatInput" placeholder="输入消息"><button class="btn btn-primary" onclick="send()" style="font-size:12px">发送</button></div></div>
 </div>
 <script>
 const T=localStorage.getItem("token");if(!T)location="/";
-fetch("/api/auth/me",{headers:{Authorization:"Bearer "+T}}).then(r=>r.json()).then(d=>document.getElementById("navUser").textContent=d.user?.email||"");
 async function A(u,o){o=o||{};o.headers={...o.headers,Authorization:"Bearer "+T,"Content-Type":"application/json"};const r=await fetch(u,o);return r.json()}
-async function L(){try{const d=await A("/api/bots");const stats=await Promise.all(d.bots.map(b=>A("/api/bots/"+b.id+"/stats").catch(()=>({msgCount:0}))));document.getElementById("list").innerHTML=d.bots.map((b,i)=>`<div class="bot-item${C===b.id?' active':''}" onclick="S(${b.id})"><span><span class="name">${b.name}</span><br><span class="id">ID: ${b.id} · 消息: ${((stats[i]||{}).msgCount||0||0)}</span></span><span style="display:flex;gap:6px;align-items:center"><span class="tag ${b.is_active?'tag-on':'tag-off'}">${b.is_active?'运行中':'停用'}</span><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();delBot(${b.id})" title="删除机器人">×</button></span></div>`).join("")}
-async function create(){const n=document.getElementById("botName").value.trim();if(!n){alert("请输入机器人名字");return}try{const r=await A("/api/bots",{method:"POST",body:JSON.stringify({name:n})});if(!r.ok){alert("创建失败: "+r.error);return}document.getElementById("botName").value="";L()}catch(e){alert("创建出错: "+e.message)}}
+async function L(){const d=await A("/api/bots");document.getElementById("botList").innerHTML=d.bots.map(b=>'<div class="bot-card" onclick="S('+b.id+')"><strong>'+b.name+'</strong><span>ID:'+b.id+'</span></div>').join("")}
+async function createBot(){const n=document.getElementById("botName").value;if(!n)return;await A("/api/bots",{method:"POST",body:JSON.stringify({name:n})});document.getElementById("botName").value="";L()}
 let C=null;
-async function S(id){C=id;document.getElementById("empty").style.display="none";document.getElementById("detail").style.display="block";document.getElementById("detail").style.animation="fadeIn .3s ease";const d=await A("/api/bots/"+id+"/public");document.getElementById("detailName").textContent=d.name;document.getElementById("pName").value=d.personality?.name||"";document.getElementById("msgs").innerHTML="";A("/api/bots/"+id+"/history").then(h=>{if(h.ok&&h.messages.length){document.getElementById("msgs").innerHTML=h.messages.map(m=>`<div class="msg ${m.role}"><div class="bubble">${m.content.replace(/</g,'<').replace(/>/g,'>')}</div></div>`).join("");document.getElementById("msgs").scrollTop=document.getElementById("msgs").scrollHeight}});L()}
-async function saveP(){await A("/api/bots/"+C,{method:"PUT",body:JSON.stringify({personality:{name:document.getElementById("pName").value,traits:{warmth:parseFloat(document.getElementById("pWarmth").value)}}})});alert("已保存")}
-async function send(){const t=document.getElementById("chatIn").value.trim();if(!t||!C)return;document.getElementById("chatIn").value="";const b=document.getElementById("msgs");b.innerHTML+=`<div class="msg user"><div class="bubble">${t.replace(/</g,'<')}</div></div><div class="msg assistant" id="load"><div class="bubble"><span class="loading-dot">...</span></div></div>`;b.scrollTop=b.scrollHeight;const r=await A("/api/chat/"+C,{method:"POST",body:JSON.stringify({text:t})});document.getElementById("load").innerHTML=`<div class="bubble">${(r.reply||r.error).replace(/</g,'<')}</div>`;b.scrollTop=b.scrollHeight}
-let qrS=null;
-async function startQR(){if(!C)return alert("请先选择一个机器人");document.getElementById("qrStatus").textContent="生成中...";const r=await fetch("http://localhost:3002/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({botId:C})});const d=await r.json();if(!d.ok){alert(d.error);return}qrS=d.sessionId;pollQR()}
-function pollQR(){(async function loop(){const r=await fetch("http://localhost:3002/status?session="+qrS);const d=await r.json();if(d.status==="done"){document.getElementById("qrStatus").textContent="已绑定";document.getElementById("qrBox").style.display="none";A("/api/bots/"+C+"/wechat-bind",{method:"POST",body:JSON.stringify({token:d.token,wxUserId:d.wxUserId})});L();return}if(d.qrText){document.getElementById("qrBox").style.display="block";document.getElementById("qrImg").src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data="+encodeURIComponent(d.qrText);document.getElementById("qrStatus").textContent="等待扫码..."}setTimeout(loop,2000)})()}
-async function delBot(id){if(!confirm("确定删除？此操作不可恢复"))return;await A("/api/bots/"+id,{method:"DELETE"});if(C===id){C=null;document.getElementById("detail").style.display="none";document.getElementById("empty").style.display="block"}L()}
+async function S(id){C=id;const d=await A("/api/bots/"+id+"/public");document.getElementById("detail").style.display="block";document.getElementById("detailName").textContent=d.name;document.getElementById("pName").value=d.personality?.name||"";document.getElementById("chatBox").innerHTML=""}
+async function saveP(){const p={name:document.getElementById("pName").value,traits:{warmth:parseFloat(document.getElementById("pWarmth").value)}};await A("/api/bots/"+C,{method:"PUT",body:JSON.stringify({personality:p})});alert("saved")}
+async function send(){const t=document.getElementById("chatInput").value.trim();if(!t)return;document.getElementById("chatInput").value="";const b=document.getElementById("chatBox");b.innerHTML+='<div class="msg user">'+t+'</div><div class="msg assistant" id="load">...</div>';b.scrollTop=b.scrollHeight;const r=await A("/api/chat/"+C,{method:"POST",body:JSON.stringify({text:t})});document.getElementById("load").outerHTML='<div class="msg assistant">'+(r.reply||r.error)+'</div>';b.scrollTop=b.scrollHeight}
+let qrS=null;async function startQR(){document.getElementById("qrStatus").textContent="生成中";const r=await fetch("http://localhost:3002/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({botId:C})});const d=await r.json();if(!d.ok){alert(d.error);return}qrS=d.sessionId;pollQR()}function pollQR(){(async function loop(){const r=await fetch("http://localhost:3002/status?session="+qrS);const d=await r.json();if(d.status==="done"){document.getElementById("qrStatus").textContent="已绑定";document.getElementById("qrBox").style.display="none";await A("/api/bots/"+C+"/wechat-bind",{method:"POST",body:JSON.stringify({token:d.token,wxUserId:d.wxUserId})});return}if(d.qrText){document.getElementById("qrBox").style.display="block";document.getElementById("qrImg").src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data="+encodeURIComponent(d.qrText);document.getElementById("qrStatus").textContent="等待扫码"}setTimeout(loop,2000)})()}async function bindWx(){const t=document.getElementById("wxToken").value;if(!t)return;const r=await A("/api/bots/"+C+"/wechat-bind",{method:"POST",body:JSON.stringify({token:t})});if(r.ok){document.getElementById("wxStatus").textContent="已绑定"}}
 L();
 </script>
-<footer style="text-align:center;padding:24px;color:#94a3b8;font-size:13px">© 2026 Emotion AI</footer>
 </body>
 </html>
