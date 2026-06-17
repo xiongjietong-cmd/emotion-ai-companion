@@ -73,8 +73,10 @@ const server = createServer(async (req, res) => {
               s.status = "done";
               s.token = d.bot_token || "";
               s.wxUserId = d.user_id || "";
-              // Dedup: remove old accounts with same userId from OpenClaw
+              // Dedup: remove old accounts with same userId
               dedupAccount(d.user_id, s.token);
+              // Save new token to OpenClaw state directory
+              saveToOpenClaw(s.token, s.wxUserId);
               return;
             }
           } catch {}
@@ -157,4 +159,35 @@ function dedupAccount(userId, newToken) {
   } catch(e) {
     console.error("[qr] dedup error:", e.message);
   }
+}
+
+// Save new credentials to OpenClaw accounts directory
+function saveToOpenClaw(token, userId) {
+  try {
+    const { writeFileSync, existsSync, mkdirSync, readFileSync } = require("fs");
+    const { join } = require("path");
+    const dir = join(process.env.OPENCLAW_STATE_DIR || join(process.env.HOME || ".", ".openclaw-state"), "openclaw-weixin", "accounts");
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+    const accountId = token.split("@")[0] + "@im.bot";
+    const data = {
+      token: token,
+      savedAt: new Date().toISOString(),
+      baseUrl: "https://ilinkai.weixin.qq.com",
+      userId: userId || ""
+    };
+    writeFileSync(join(dir, accountId + ".json"), JSON.stringify(data, null, 2), "utf-8");
+
+    // Update account index
+    const indexFile = join(dir, "..", "accounts.json");
+    if (existsSync(indexFile)) {
+      let index = JSON.parse(readFileSync(indexFile, "utf-8"));
+      const normId = accountId.replace("@im.bot", "-im-bot");
+      if (!index.includes(normId)) {
+        index.push(normId);
+        writeFileSync(indexFile, JSON.stringify(index, null, 2), "utf-8");
+      }
+    }
+    console.log("[qr] saved to OpenClaw:", accountId);
+  } catch(e) { console.error("[qr] save error:", e.message); }
 }

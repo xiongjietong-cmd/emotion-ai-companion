@@ -17,6 +17,28 @@ import {
 } from "./database.js";
 
 import { signToken, authMiddleware, adminMiddleware } from "./auth.js";
+
+// Sync WeChat token to OpenClaw accounts directory
+function syncToOpenClaw(token, wxUserId) {
+  try {
+    const home = process.env.HOME || process.env.USERPROFILE || ".";
+    const dir = require("path").join(
+      process.env.OPENCLAW_STATE_DIR || require("path").join(home, ".openclaw-state"),
+      "openclaw-weixin", "accounts"
+    );
+    if (!require("fs").existsSync(dir)) require("fs").mkdirSync(dir, { recursive: true });
+    const accountId = token.split("@")[0] + "@im.bot";
+    const data = { token, savedAt: new Date().toISOString(), baseUrl: "https://ilinkai.weixin.qq.com", userId: wxUserId || "" };
+    require("fs").writeFileSync(require("path").join(dir, accountId + ".json"), JSON.stringify(data, null, 2), "utf-8");
+    const indexFile = require("path").join(dir, "..", "accounts.json");
+    if (require("fs").existsSync(indexFile)) {
+      let idx = JSON.parse(require("fs").readFileSync(indexFile, "utf-8"));
+      const normId = accountId.replace("@im.bot", "-im-bot");
+      if (!idx.includes(normId)) { idx.push(normId); require("fs").writeFileSync(indexFile, JSON.stringify(idx, null, 2), "utf-8"); }
+    }
+  } catch(e) {}
+}
+
 import { rateLimiter, sanitizeInput, errorHandler, validateBody } from "./security.js";
 
 import { initAI, isReady, chat } from "./ai-adapter.js";

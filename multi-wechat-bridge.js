@@ -107,7 +107,21 @@ async function pollAccount(acct) {
     for (const msg of (data.msgs || [])) {
       if (msg.message_type === 1) await handleMessage(acct, msg);
     }
-  } catch {}
+  } catch (e) {
+    // If auth failed, try refreshing token from SaaS
+    if (e.message && (e.message.includes("401") || e.message.includes("403"))) {
+      console.log("[bridge] Auth error for " + acct.id + ", trying DB refresh...");
+      if (db) {
+        try {
+          const row = db.prepare("SELECT value FROM settings WHERE key = ?").get("wechat_" + (db.prepare("SELECT value FROM settings WHERE key = ?").get("wx_bot_" + acct.id.split("@")[0])?.value || "1") + "_token");
+          if (row) {
+            acct.token = row.value;
+            console.log("[bridge] Token refreshed from DB");
+          }
+        } catch {}
+      }
+    }
+  }
 }
 
 // ─── 主循环 ───
