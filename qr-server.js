@@ -1,14 +1,17 @@
-// qr-server.js — 正确调用 WeChat get_bot_qrcode API
+// qr-server.js — WeChat QR login with notifyStart
 
 import { createServer } from "http";
 import { randomBytes } from "crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 const PORT = 3002;
 const BASE_URL = "https://ilinkai.weixin.qq.com";
 const BOT_TYPE = "3";
+const STATE_DIR = process.env.OPENCLAW_STATE_DIR || "D:/Documents/New project 2/.openclaw-state";
 
 function buildHeaders(token) {
-  const uin = randomBytes(4).readUInt32BE(0).toString();
+  const uin = String(Math.floor(Math.random() * 4294967295));
   return {
     "Content-Type": "application/json",
     "AuthorizationType": "ilink_bot_token",
@@ -17,6 +20,44 @@ function buildHeaders(token) {
     "iLink-App-Id": "bot",
     "iLink-App-ClientVersion": "131328"
   };
+}
+
+async function notifyStart(token) {
+  try {
+    await fetch(BASE_URL + "/ilink/bot/msg/notifystart", {
+      method: "POST", headers: buildHeaders(token),
+      body: JSON.stringify({ base_info: { channel_version: "2.4.3", bot_agent: "OpenClaw" } })
+    });
+  } catch(e) {}
+}
+
+async function saveAccount(token, userId) {
+  try {
+    const dir = path.join(STATE_DIR, "openclaw-weixin", "accounts");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const accountId = token.split("@")[0] + "@im.bot";
+    const idxId = accountId.replace("@im.bot", "-im-bot");
+    const data = { token, savedAt: new Date().toISOString(), baseUrl: BASE_URL, userId: userId || "" };
+    fs.writeFileSync(path.join(dir, accountId + ".json"), JSON.stringify(data, null, 2), "utf-8");
+    const indexFile = path.join(dir, "..", "accounts.json");
+    let idx = [];
+    try { idx = JSON.parse(fs.readFileSync(indexFile, "utf-8")); } catch {}
+    if (!idx.includes(idxId)) { idx.push(idxId); fs.writeFileSync(indexFile, JSON.stringify(idx, null, 2), "utf-8"); }
+    // Remove old accounts with same userId
+    const files = fs.readdirSync(dir).filter(f => f.endsWith(".json") && !f.includes("context") && !f.includes("sync"));
+    for (const f of files) {
+      if (f === accountId + ".json") continue;
+      try {
+        const d = JSON.parse(fs.readFileSync(path.join(dir, f), "utf-8"));
+        if (d.userId === userId && d.token !== token) {
+          fs.unlinkSync(path.join(dir, f));
+          try { fs.unlinkSync(path.join(dir, f.replace(".json", ".sync.json"))); } catch {}
+          idx = idx.filter(id => id !== f.replace("@im.bot", "-im-bot").replace(".json", ""));
+          fs.writeFileSync(indexFile, JSON.stringify(idx, null, 2), "utf-8");
+        }
+      } catch {}
+    }
+  } catch(e) { console.error("save failed:", e.message); }
 }
 
 const sessions = {};
@@ -34,75 +75,39 @@ const server = createServer(async (req, res) => {
     const body = JSON.parse(await readBody(req));
     const { botId } = body;
     if (!botId) { res.writeHead(400); res.end(JSON.stringify({error:"need botId"})); return; }
-
     const sessionId = "wx" + Date.now();
 
     try {
-      // Call WeChat get_bot_qrcode API (same as OpenClaw plugin uses)
       const result = await fetch(BASE_URL + "/ilink/bot/get_bot_qrcode?bot_type=" + BOT_TYPE, {
-        method: "POST",
-        headers: buildHeaders(""),
+        method: "POST", headers: buildHeaders(""),
         body: JSON.stringify({ local_token_list: [] })
       });
       const data = await result.json();
-      
-      const qrcode = data.qrcode || "";
-      const qrUrl = data.qrcode_img_content || data.qr_url || "";
-
-      if (!qrcode && !data.qr_url) {
-        res.writeHead(500);
-        res.end(JSON.stringify({error:"No QR: " + JSON.stringify(data)}));
-        return;
+      if (!data.qrcode_img_content) {
+        res.writeHead(500); res.end(JSON.stringify({error:"QR failed: "+JSON.stringify(data)})); return;
       }
-
-      sessions[sessionId] = {
-        botId, status: "scanning", qrUrl: qrUrl,
-        qrcode: qrcode, token: null, wxUserId: null
-      };
-
-      // Background polling for scan completion
+      sessions[sessionId] = { botId, status:"scanning", qrUrl:data.qrcode_img_content, qrcode:data.qrcode, token:null, wxUserId:null };
+      // Background poll
       (async function poll() {
-        for (let i = 0; i < 30; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          const s = sessions[sessionId];
-          if (!s || s.status !== "scanning") return;
+        for (let i=0;i<60;i++) {
+          await new Promise(r=>setTimeout(r,2000));
+          const s = sessions[sessionId]; if(!s||s.status!=="scanning") return;
           try {
-            const r = await fetch(BASE_URL + "/ilink/bot/get_qrcode_status?qrcode=" + s.qrcode, { method: "GET", headers: buildHeaders("") });
+            const r = await fetch(BASE_URL+"/ilink/bot/get_qrcode_status?qrcode="+s.qrcode,{method:"GET",headers:buildHeaders("")});
             const d = await r.json();
-                        if (d.status === "confirmed" || d.bot_token) {
-              s.status = "done";
-              s.token = d.bot_token || "";
-              s.wxUserId = d.user_id || "";
-              // Dedup: remove old accounts with same userId
-              dedupAccount(d.user_id, s.token);
-              // Save new token to OpenClaw state directory
-              saveToOpenClaw(s.token, s.wxUserId);
-              return;
-            }
-          } catch {}
+            if(d.bot_token){s.status="done";s.token=d.bot_token;s.wxUserId=d.user_id||"";await notifyStart(s.token);await saveAccount(s.token,s.wxUserId);return}
+          }catch{}
         }
-        sessions[sessionId].status = "timeout";
       })();
-
-      res.end(JSON.stringify({ ok: true, sessionId }));
-    } catch(e) {
-      res.writeHead(500);
-      res.end(JSON.stringify({error:e.message}));
-    }
+      res.end(JSON.stringify({ok:true,sessionId}));
+    } catch(e) { res.writeHead(500); res.end(JSON.stringify({error:e.message})); }
     return;
   }
 
   if (req.method === "GET" && url.pathname === "/status") {
-    const sessionId = url.searchParams.get("session");
-    const s = sessions[sessionId];
-    if (!s) { res.end(JSON.stringify({status:"not_found"})); return; }
-
-    // Status polling happens in background, started after QR is obtained
-
-    res.end(JSON.stringify({
-      status: s.status, qrText: s.qrUrl || "",
-      token: s.token || "", wxUserId: s.wxUserId || "", botId: s.botId
-    }));
+    const s = sessions[url.searchParams.get("session")];
+    if(!s){res.end(JSON.stringify({status:"not_found"}));return}
+    res.end(JSON.stringify({status:s.status,qrText:s.qrUrl||"",token:s.token||"",wxUserId:s.wxUserId||"",botId:s.botId}));
     return;
   }
 
@@ -110,84 +115,7 @@ const server = createServer(async (req, res) => {
 });
 
 function readBody(req) {
-  return new Promise((resolve) => {
-    let data = "";
-    req.on("data", c => data += c);
-    req.on("end", () => resolve(data));
-  });
+  return new Promise(r=>{let d="";req.on("data",c=>d+=c);req.on("end",()=>r(d));});
 }
 
 server.listen(PORT, () => console.log("QR server on " + PORT));
-
-// Remove duplicate WeChat accounts with same userId, keep only the latest
-function dedupAccount(userId, newToken) {
-  if (!userId) return;
-  try {
-    const { readFileSync, writeFileSync, readdirSync, unlinkSync, existsSync } = require("fs");
-    const { join } = require("path");
-    const stateDir = process.env.OPENCLAW_STATE_DIR || join(process.env.HOME || ".", ".openclaw-state");
-    const accountsDir = join(stateDir, "openclaw-weixin", "accounts");
-    if (!existsSync(accountsDir)) return;
-
-    const files = readdirSync(accountsDir).filter(f => f.endsWith(".json") && !f.includes("context") && !f.includes("sync"));
-    let oldAccountId = null;
-
-    for (const f of files) {
-      try {
-        const data = JSON.parse(readFileSync(join(accountsDir, f), "utf-8"));
-        if (data.userId === userId && data.token !== newToken) {
-          oldAccountId = f.replace(".json", "");
-          break;
-        }
-      } catch {}
-    }
-
-    if (oldAccountId) {
-      // Remove old account file and from index
-      unlinkSync(join(accountsDir, oldAccountId + ".json"));
-      try { unlinkSync(join(accountsDir, oldAccountId + ".sync.json")); } catch {}
-      try { unlinkSync(join(accountsDir, oldAccountId + ".context-tokens.json")); } catch {}
-
-      const indexFile = join(stateDir, "openclaw-weixin", "accounts.json");
-      if (existsSync(indexFile)) {
-        let index = JSON.parse(readFileSync(indexFile, "utf-8"));
-        index = index.filter(id => id !== oldAccountId);
-        writeFileSync(indexFile, JSON.stringify(index, null, 2), "utf-8");
-      }
-      console.log("[qr] removed old account " + oldAccountId + " for userId " + userId);
-    }
-  } catch(e) {
-    console.error("[qr] dedup error:", e.message);
-  }
-}
-
-// Save new credentials to OpenClaw accounts directory
-function saveToOpenClaw(token, userId) {
-  try {
-    const { writeFileSync, existsSync, mkdirSync, readFileSync } = require("fs");
-    const { join } = require("path");
-    const dir = join(process.env.OPENCLAW_STATE_DIR || join(process.env.HOME || ".", ".openclaw-state"), "openclaw-weixin", "accounts");
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-
-    const accountId = token.split("@")[0] + "@im.bot";
-    const data = {
-      token: token,
-      savedAt: new Date().toISOString(),
-      baseUrl: "https://ilinkai.weixin.qq.com",
-      userId: userId || ""
-    };
-    writeFileSync(join(dir, accountId + ".json"), JSON.stringify(data, null, 2), "utf-8");
-
-    // Update account index
-    const indexFile = join(dir, "..", "accounts.json");
-    if (existsSync(indexFile)) {
-      let index = JSON.parse(readFileSync(indexFile, "utf-8"));
-      const normId = accountId.replace("@im.bot", "-im-bot");
-      if (!index.includes(normId)) {
-        index.push(normId);
-        writeFileSync(indexFile, JSON.stringify(index, null, 2), "utf-8");
-      }
-    }
-    console.log("[qr] saved to OpenClaw:", accountId);
-  } catch(e) { console.error("[qr] save error:", e.message); }
-}

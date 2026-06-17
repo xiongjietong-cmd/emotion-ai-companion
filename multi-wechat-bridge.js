@@ -104,6 +104,7 @@ async function pollAccount(acct) {
       base_info: { channel_version: "2.4.3", bot_agent: "OpenClaw" }
     }, acct.token);
     if (data.get_updates_buf) { acct.syncBuf = data.get_updates_buf; saveSync(acct); }
+    if ((data.msgs||[]).length > 0) console.log("[bridge] Got " + data.msgs.length + " msgs, ret=" + data.ret);
     for (const msg of (data.msgs || [])) {
       if (msg.message_type === 1) await handleMessage(acct, msg);
     }
