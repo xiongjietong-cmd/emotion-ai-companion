@@ -3,46 +3,53 @@ import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import fs from "fs";
 
 import {
   initDatabase,
   createUser, getUserByEmail, getUserById, getAllUsers, getUserCount,
   createBot, getBotsByUser, getBotById, updateBot, getTotalBotCount,
   addMessage, getRecentMessages,
-  setMemory, getMemories,
+  setMemory, getMemories, deleteMemory,
   getRelationship, updateRelationship,
+  getCompanionRelationship, updateCompanionRelationship,
+  getCompanionMemories, setCompanionMemory, recordReplyJudgement,
   getSetting, setSetting,
-  getWechatAccount,
-  getStats, getMessageStats, recordMessageStat, verifyPassword
+  bindWechat, getWechatAccount, getWechatStatus,
+  getUserUsage, canCreateBot, canBindWechat, canSendMessage,
+  getStats, getMessageStats, getAdminBotRows, recordMessageStat, verifyPassword, getDb,
+  createOrder, getOrderById, confirmOrder, getOrdersByUser, getAllOrders, getOrderStats, PLAN_PRICES
 } from "./database.js";
 
 import { signToken, authMiddleware, adminMiddleware } from "./auth.js";
 
 // Sync WeChat token to OpenClaw accounts directory
-function syncToOpenClaw(token, wxUserId) {
+function syncToOpenClaw(token, wxUserId, baseUrl = "https://ilinkai.weixin.qq.com") {
   try {
-    const home = process.env.HOME || process.env.USERPROFILE || ".";
-    const dir = require("path").join(
-      process.env.OPENCLAW_STATE_DIR || require("path").join(home, ".openclaw-state"),
+    const dir = join(
+      process.env.OPENCLAW_STATE_DIR || join(__dirname, "..", ".openclaw-state"),
       "openclaw-weixin", "accounts"
     );
-    if (!require("fs").existsSync(dir)) require("fs").mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const accountId = token.split("@")[0] + "@im.bot";
-    const data = { token, savedAt: new Date().toISOString(), baseUrl: "https://ilinkai.weixin.qq.com", userId: wxUserId || "" };
-    require("fs").writeFileSync(require("path").join(dir, accountId + ".json"), JSON.stringify(data, null, 2), "utf-8");
-    const indexFile = require("path").join(dir, "..", "accounts.json");
-    if (require("fs").existsSync(indexFile)) {
-      let idx = JSON.parse(require("fs").readFileSync(indexFile, "utf-8"));
+    const data = { token, savedAt: new Date().toISOString(), baseUrl, userId: wxUserId || "" };
+    fs.writeFileSync(join(dir, accountId + ".json"), JSON.stringify(data, null, 2), "utf-8");
+    const indexFile = join(dir, "..", "accounts.json");
+    if (fs.existsSync(indexFile)) {
+      let idx = JSON.parse(fs.readFileSync(indexFile, "utf-8"));
       const normId = accountId.replace("@im.bot", "-im-bot");
-      if (!idx.includes(normId)) { idx.push(normId); require("fs").writeFileSync(indexFile, JSON.stringify(idx, null, 2), "utf-8"); }
+      if (!idx.includes(normId)) { idx.push(normId); fs.writeFileSync(indexFile, JSON.stringify(idx, null, 2), "utf-8"); }
     }
   } catch(e) {}
 }
 
 import { rateLimiter, sanitizeInput, errorHandler, validateBody } from "./security.js";
 
-import { initAI, isReady, chat } from "./ai-adapter.js";
+import { initAI, isReady, chat, chatNonStreaming } from "./ai-adapter.js";
+import { createCompanionReply, isCompanionUnavailable } from "./companion-client.js";
+import { synthesize } from "./tts.js";
 import { DEFAULT_PERSONALITY, buildSystemPrompt, detectUserEmotion } from "./emotional-engine.js";
+import { consolidateMemory } from "./memory-consolidator.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -73,6 +80,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.static(join(__dirname, "..", "client")));
+app.use("/tts-audio", express.static(join(__dirname, "..", "data", "tts")));
 
 // Health check
 app.get("/api/health", (req, res) => { res.json({ ok: true, time: new Date().toISOString() }); });
@@ -115,17 +123,32 @@ app.get("/api/auth/me", authMiddleware, (req, res) => {
   res.json({ ok: true, user });
 });
 
+app.get("/api/me/usage", authMiddleware, (req, res) => {
+  res.json({ ok: true, ...getUserUsage(req.user.id) });
+});
+
 // ══════════════════════════════════════════
 // 机器人管理
 // ══════════════════════════════════════════
 
 app.get("/api/bots", authMiddleware, (req, res) => {
-  const bots = getBotsByUser(req.user.id);
+  const bots = getBotsByUser(req.user.id).map((bot) => ({
+    ...bot,
+    wechatStatus: getWechatStatus(bot.id)
+  }));
   res.json({ ok: true, bots });
 });
 
 app.post("/api/bots", authMiddleware, (req, res) => {
   const { name, personality } = req.body;
+  const quota = canCreateBot(req.user.id);
+  if (!quota.ok) {
+    return res.status(403).json({
+      error: "当前套餐的机器人数量已用完",
+      code: "BOT_LIMIT_REACHED",
+      quota: quota.state
+    });
+  }
   const botId = createBot(req.user.id, name || "小暖", personality || DEFAULT_PERSONALITY);
   res.json({ ok: true, botId });
 });
@@ -180,9 +203,13 @@ app.post("/api/chat/:botId", async (req, res) => {
   try {
     const bot = getBotById(req.params.botId);
     if (!bot || !bot.is_active) return res.status(404).json({ error: "机器人不存在或已停用" });
+    const quota = canSendMessage(bot.user_id);
+    if (!quota.ok) {
+      return res.status(403).json({ ok: false, error: "本月消息额度已用完", code: "MESSAGE_LIMIT_REACHED", quota: quota.state });
+    }
 
     const personality = bot.personality ? JSON.parse(bot.personality) : DEFAULT_PERSONALITY;
-    const result = await processMessage({
+    const result = await processCompanionMessage({
       botId: bot.id,
       text: req.body.text,
       personality,
@@ -203,20 +230,22 @@ app.post("/api/chat/:botId", async (req, res) => {
 app.post("/api/webhook/:botId", async (req, res) => {
   const bot = getBotById(req.params.botId);
   if (!bot || !bot.is_active) return res.status(404).json({ error: "机器人不存在" });
+  const quota = canSendMessage(bot.user_id);
+  if (!quota.ok) return res.status(403).json({ ok: false, error: "本月消息额度已用完", code: "MESSAGE_LIMIT_REACHED", quota: quota.state });
 
   const text = req.body.text || req.body.message || "";
   const senderId = req.body.senderId || req.body.from || "";
 
   try {
     const personality = bot.personality ? JSON.parse(bot.personality) : DEFAULT_PERSONALITY;
-    const result = await processMessage({
+    const result = await processCompanionMessage({
       botId: bot.id,
       text,
       personality,
       source: "wechat",
       senderId
     });
-    res.json({ ok: true, text: result.reply });
+    res.json({ ok: true, text: result.reply, texts: result.replyParts || [result.reply], replyParts: result.replyParts || [result.reply], aiEmotion: result.aiEmotion });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }
@@ -228,20 +257,42 @@ app.post("/api/bots/:id/wechat-bind", authMiddleware, (req, res) => {
   if (!bot || bot.user_id !== req.user.id) return res.status(404).json({ error: "机器人不存在" });
   
   const { token, baseUrl, wxUserId } = req.body;
+  if (!token || typeof token !== "string" || !token.includes("@")) {
+    return res.status(400).json({ error: "invalid wechat token" });
+  }
+  const finalBaseUrl = baseUrl || "https://ilinkai.weixin.qq.com";
+  const quota = canBindWechat(req.user.id, bot.id);
+  if (!quota.ok) {
+    return res.status(403).json({
+      error: "当前套餐的微信绑定数量已用完",
+      code: "WECHAT_LIMIT_REACHED",
+      quota: quota.state
+    });
+  }
 
   // save wechat credentials
   setSetting("wechat_" + bot.id + "_token", token);
-  setSetting("wechat_" + bot.id + "_baseUrl", baseUrl || "https://ilinkai.weixin.qq.com");
+  setSetting("wechat_" + bot.id + "_baseUrl", finalBaseUrl);
   setSetting("wechat_" + bot.id + "_userId", wxUserId || "");
   setSetting("wx_bot_" + token.split("@")[0], String(bot.id));
+  bindWechat(bot.id, token, finalBaseUrl, wxUserId || "");
+  syncToOpenClaw(token, wxUserId || "", finalBaseUrl);
   res.json({ ok: true });
+});
+
+app.get("/api/bots/:id/wechat-status", authMiddleware, (req, res) => {
+  const bot = getBotById(req.params.id);
+  if (!bot || bot.user_id !== req.user.id) return res.status(404).json({ error: "机器人不存在" });
+  res.json({ ok: true, status: getWechatStatus(bot.id) });
 });
 
 // ══════════════════════════════════════════
 // 记忆管理
 // ══════════════════════════════════════════
 
-app.get("/api/bots/:id/memories", (req, res) => {
+app.get("/api/bots/:id/memories", authMiddleware, (req, res) => {
+  const bot = getBotById(req.params.id);
+  if (!bot || bot.user_id !== req.user.id) return res.status(404).json({ error: "机器人不存在" });
   const memories = getMemories(req.params.id);
   res.json({ ok: true, memories });
 });
@@ -251,6 +302,15 @@ app.post("/api/bots/:id/memories", authMiddleware, (req, res) => {
   if (!bot || bot.user_id !== req.user.id) return res.status(404).json({ error: "机器人不存在" });
   const { key, value } = req.body;
   setMemory(req.params.id, key, value, 1.0, "manual");
+  res.json({ ok: true });
+});
+
+app.delete("/api/bots/:id/memories", authMiddleware, (req, res) => {
+  const bot = getBotById(req.params.id);
+  if (!bot || bot.user_id !== req.user.id) return res.status(404).json({ error: "机器人不存在" });
+  const { key } = req.body;
+  if (!key) return res.status(400).json({ error: "缺少记忆关键词" });
+  deleteMemory(req.params.id, key);
   res.json({ ok: true });
 });
 
@@ -269,6 +329,33 @@ app.post("/api/settings", (req, res) => {
     initAI(req.body.apiKey, MODEL);
   }
   res.json({ ok: true });
+});
+
+app.post("/api/orders", authMiddleware, (req, res) => {
+  const { plan } = req.body;
+  if (!PLAN_PRICES[plan]) {
+    return res.status(400).json({ error: "invalid plan, allowed: starter, pro" });
+  }
+  const info = createOrder(req.user.id, plan);
+  res.json({ ok: true, orderId: info.lastInsertRowid, amount: PLAN_PRICES[plan] });
+});
+
+app.post("/api/orders/:id/confirm", authMiddleware, (req, res) => {
+  const order = getOrderById(req.params.id);
+  if (!order || order.user_id !== req.user.id) {
+    return res.status(404).json({ error: "order not found" });
+  }
+  const result = confirmOrder(req.params.id);
+  if (!result) return res.status(400).json({ error: "order already handled or canceled" });
+  res.json({ ok: true, plan: result.plan });
+});
+
+app.get("/api/orders", authMiddleware, (req, res) => {
+  res.json({ ok: true, orders: getOrdersByUser(req.user.id) });
+});
+
+app.get("/api/admin/orders", authMiddleware, adminMiddleware, (req, res) => {
+  res.json({ ok: true, orders: getAllOrders(), orderStats: getOrderStats() });
 });
 
 // ══════════════════════════════════════════
@@ -292,12 +379,54 @@ app.get("/api/admin/stats", authMiddleware, adminMiddleware, (req, res) => {
   const stats = getStats();
   const msgStats = getMessageStats(7);
   const users = getAllUsers();
-  res.json({ ok: true, stats, msgStats, users });
+  const bots = getAdminBotRows().map((bot) => ({
+    ...bot,
+    wechatStatus: getWechatStatus(bot.id),
+    active: Boolean(bot.is_active),
+    hasWechat: Boolean(bot.has_wechat),
+    msgIn: bot.msg_in || 0,
+    msgOut: bot.msg_out || 0
+  }));
+  res.json({ ok: true, stats, msgStats, users, bots });
 });
 
 // ══════════════════════════════════════════
 // 聊天引擎
 // ══════════════════════════════════════════
+
+app.get("/api/admin/analytics", authMiddleware, adminMiddleware, (req, res) => {
+  const db = getDb();
+  const today = new Date().toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+
+  const dau = db.prepare(`
+    SELECT COUNT(DISTINCT b.user_id) AS count
+    FROM conversations c
+    JOIN bots b ON b.id = c.bot_id
+    WHERE date(c.timestamp) = ?
+  `).get(today).count;
+
+  const wau = db.prepare(`
+    SELECT COUNT(DISTINCT b.user_id) AS count
+    FROM conversations c
+    JOIN bots b ON b.id = c.bot_id
+    WHERE date(c.timestamp) >= ?
+  `).get(weekAgo).count;
+
+  const newUsersByDay = db.prepare(`
+    SELECT date(created_at) AS date, COUNT(*) AS count
+    FROM users
+    WHERE date(created_at) >= ?
+    GROUP BY date(created_at)
+    ORDER BY date DESC
+  `).all(weekAgo);
+
+  const totalBots = db.prepare("SELECT COUNT(*) AS count FROM bots WHERE is_active = 1").get().count;
+  const boundBots = db.prepare("SELECT COUNT(*) AS count FROM wechat_accounts WHERE is_connected = 1").get().count;
+  const planDistribution = db.prepare("SELECT plan, COUNT(*) AS count FROM users GROUP BY plan").all();
+
+  res.json({ ok: true, dau, wau, newUsersByDay, totalBots, boundBots, planDistribution });
+});
 
 function normalizePersonality(p) {
   return { ...DEFAULT_PERSONALITY, ...(p || {}), traits: { ...DEFAULT_PERSONALITY.traits, ...((p && p.traits) || {}) } };
@@ -342,12 +471,183 @@ async function processMessage({ botId, text, personality, source, senderId }) {
   addMessage(botId, "assistant", fullResponse, aiEmotion, "");
   recordMessageStat(botId);
 
+  try {
+    const msgCount = getDb().prepare("SELECT COUNT(*) AS count FROM conversations WHERE bot_id = ?").get(botId)?.count || 0;
+    if (msgCount > 0 && msgCount % 8 === 0) {
+      setTimeout(() => {
+        consolidateMemory(
+          (msgs) => chatNonStreaming(msgs),
+          getRecentMessages(botId, 12),
+          getMemories(botId)
+        ).then((facts) => {
+          (facts || []).forEach((fact) => setMemory(botId, fact.key, fact.value, 0.6, "auto"));
+        }).catch((e) => {
+          console.error("Memory consolidation failed:", e.message);
+        });
+      }, 1000);
+    }
+  } catch (e) {
+    console.error("Memory consolidation scheduling failed:", e.message);
+  }
+
   return { reply: fullResponse, userEmotion, aiEmotion };
 }
 
 // ══════════════════════════════════════════
 // 启动
 // ══════════════════════════════════════════
+
+async function processCompanionMessage({ botId, text, personality, source, senderId }) {
+  const cleanText = sanitizeInput(text);
+  if (!cleanText) throw Object.assign(new Error("消息为空"), { code: "EMPTY_MESSAGE" });
+
+  const p = normalizePersonality(personality);
+  const userEmotion = detectUserEmotion(cleanText);
+  const userKey = senderId || `${source || "unknown"}-user`;
+  addMessage(botId, "user", cleanText, userEmotion, userKey);
+
+  try {
+    const companion = await createCompanionReply({
+      bot_id: String(botId),
+      user_key: userKey,
+      channel: source || "web",
+      text: cleanText,
+      recent_messages: getRecentMessages(botId, 50),
+      memories: getCompanionMemories(botId, userKey),
+      relationship: getCompanionRelationship(botId, userKey),
+      provider_config: {
+        api_key: getSetting("deepseek_api_key", ""),
+        base_url: process.env.DEEPSEEK_BASE_URL || "",
+        model: MODEL
+      }
+    });
+
+    const replyParts = normalizeReplyParts(companion.replyParts, companion.reply);
+    const reply = replyParts.join("\n");
+    const aiEmotion = detectUserEmotion(reply);
+    let assistantMessage = null;
+    for (const part of replyParts) {
+      assistantMessage = addMessage(botId, "assistant", part, aiEmotion, "");
+    }
+    updateCompanionRelationship(botId, userKey, companion.relationshipDelta || {});
+    for (const memory of companion.memoryCandidates || []) {
+      if (memory?.key && memory?.value) setCompanionMemory(botId, userKey, memory);
+    }
+    recordReplyJudgement(botId, userKey, assistantMessage?.lastInsertRowid || null, companion.judge || {});
+    recordMessageStat(botId, 1, replyParts.length);
+
+    return {
+      reply,
+      replyParts,
+      userEmotion,
+      aiEmotion,
+      companion: {
+        directorGoal: companion.directorGoal,
+        judge: companion.judge
+      }
+    };
+  } catch (error) {
+    if (!isCompanionUnavailable(error)) throw error;
+    console.warn("Companion core unavailable, using Node fallback:", error.message);
+  }
+
+  if (!isReady()) throw Object.assign(new Error("AI 未配置"), { code: "AI_NOT_READY" });
+
+  if (isIdentityQuestion(cleanText)) {
+    const reply = "我是" + (p.name || "小伴") + "。";
+    addMessage(botId, "assistant", reply, "平静", "");
+    recordMessageStat(botId);
+    return { reply, userEmotion, aiEmotion: "平静" };
+  }
+
+  const relationship = getRelationship(botId);
+  const memories = getMemories(botId);
+  const systemPrompt = buildSystemPrompt(p, relationship, memories);
+  const recent = getRecentMessages(botId, 10);
+  const messagesForAI = [
+    { role: "system", content: systemPrompt },
+    ...recent.map((message) => ({ role: message.role, content: message.content }))
+  ];
+
+  updateRelationship(botId, { intimacy: 0.01, trust: 0.005, mood: userEmotion });
+
+  let fullResponse = "";
+  await chat(messagesForAI, (token) => { fullResponse += token; });
+
+  const aiEmotion = detectUserEmotion(fullResponse);
+  const replyParts = normalizeReplyParts([], fullResponse);
+  const reply = replyParts.join("\n");
+  for (const part of replyParts) {
+    addMessage(botId, "assistant", part, aiEmotion, "");
+  }
+  recordMessageStat(botId, 1, replyParts.length);
+
+  return { reply, replyParts, userEmotion, aiEmotion };
+}
+
+function normalizeReplyParts(parts, fallbackReply) {
+  const normalized = Array.isArray(parts)
+    ? parts.map((part) => String(part || "").trim()).filter(Boolean)
+    : [];
+  if (normalized.length) return normalized.slice(0, 4);
+  const fallback = String(fallbackReply || "").trim();
+  if (!fallback) return [];
+
+  const fromLines = fallback
+    .split(/\r?\n+/)
+    .map((part) => part.replace(/[ \t]+/g, " ").trim())
+    .filter(Boolean);
+  let splitParts = fromLines.length > 1
+    ? fromLines
+    : fallback.split(/(?<=[。！？!?])\s*/).map((part) => part.trim()).filter(Boolean);
+  if (splitParts.length <= 1 && fallback.length >= 18) {
+    splitParts = fallback.split(/[，,；;]/).map((part) => part.trim()).filter(Boolean);
+  }
+  if (splitParts.length <= 1 && fallback.length >= 28) {
+    const midpoint = Math.floor(fallback.length / 2);
+    splitParts = [fallback.slice(0, midpoint).trim(), fallback.slice(midpoint).trim()].filter(Boolean);
+  }
+  return splitParts.slice(0, 4);
+}
+
+// ══════════════════════════════════════════
+// 语音合成 (TTS)
+// ══════════════════════════════════════════
+
+app.post("/api/tts", async (req, res) => {
+  try {
+    const { text, emotion } = req.body;
+    if (!text) return res.status(400).json({ error: "缺少text参数" });
+    const { stream, contentType } = await synthesize({ text, emotion: emotion || "平静" });
+    res.setHeader("Content-Type", contentType);
+    stream.pipe(res);
+    stream.on("error", () => { if (!res.headersSent) res.status(500).end(); });
+  } catch (e) {
+    res.status(500).json({ error: "TTS 合成失败" });
+  }
+});
+
+app.post("/api/tts-url", async (req, res) => {
+  try {
+    const { text, emotion, baseUrl } = req.body;
+    if (!text) return res.status(400).json({ error: "缺少text参数" });
+    const { stream } = await synthesize({ text, emotion: emotion || "平静" });
+    const chunks = [];
+    stream.on("data", (c) => chunks.push(c));
+    stream.on("end", () => {
+      const buf = Buffer.concat(chunks);
+      const filename = `v_${Date.now()}_${Math.random().toString(36).slice(2,6)}.mp3`;
+      const dest = join(__dirname, "..", "data", "tts", filename);
+      fs.mkdirSync(join(__dirname, "..", "data", "tts"), { recursive: true });
+      fs.writeFileSync(dest, buf);
+      const prefix = (baseUrl || "").replace(/\/+$/, "");
+      res.json({ ok: true, url: prefix + "/tts-audio/" + filename, duration: Math.round(buf.length / 16 * 10) });
+    });
+    stream.on("error", () => { if (!res.headersSent) res.status(500).json({ error: "合成失败" }); });
+  } catch (e) {
+    res.status(500).json({ error: "TTS 合成失败" });
+  }
+});
 
 app.use(errorHandler);
 

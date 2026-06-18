@@ -3,48 +3,425 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard</title>
+<title>情感 AI 控制台</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:sans-serif;background:#f5f5f5}
-.header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:16px 24px;display:flex;justify-content:space-between}
-.btn{padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:bold}
-.btn-primary{background:#ffd700}
-.btn-danger{background:#e74c3c;color:#fff}
-.container{max-width:800px;margin:20px auto;padding:0 16px}
-.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-input{padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
-.flex{display:flex;gap:10px;align-items:center}
-.bot-card{display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer}
-.bot-card:hover,.bot-card.active{border-color:#667eea;background:#f0f0ff}
-.chat-box{border:1px solid #eee;border-radius:8px;height:300px;overflow-y:auto;padding:12px;background:#fafafa;margin-top:12px}
-.msg{margin-bottom:8px;padding:8px 12px;border-radius:12px;max-width:80%}
-.msg.user{background:#667eea;color:#fff;margin-left:auto}
-.msg.assistant{background:#e8e8e8}
-.chat-row{display:flex;gap:8px;margin-top:8px}
-.chat-row input{flex:1}
+:root{--bg:#f6f7fb;--panel:#fff;--line:#e5e7eb;--text:#1f2937;--muted:#6b7280;--primary:#4f46e5;--ok:#16a34a;--bad:#dc2626}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+header{height:58px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 22px}
+h1{font-size:18px;margin:0}.layout{display:grid;grid-template-columns:320px 1fr;gap:18px;max-width:1280px;margin:18px auto;padding:0 16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}.panel h2{font-size:15px;margin:0 0 12px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}.stat b{font-size:24px}.stat span{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+button{border:0;border-radius:7px;padding:9px 12px;cursor:pointer;background:var(--primary);color:#fff;font-weight:600}button.secondary{background:#eef2ff;color:var(--primary)}button.danger{background:#fee2e2;color:var(--bad)}
+input,textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:9px 10px;font-size:14px;background:#fff}textarea{resize:vertical;min-height:72px}
+label{font-size:12px;color:var(--muted);display:block;margin:10px 0 5px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.bot{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;cursor:pointer}.bot.active{border-color:var(--primary);background:#eef2ff}.bot small{color:var(--muted);display:block;margin-top:5px}
+.badge{font-size:12px;border-radius:999px;padding:2px 8px;background:#f3f4f6;color:var(--muted);white-space:nowrap}.badge.ok{background:#dcfce7;color:var(--ok)}.badge.bad{background:#fee2e2;color:var(--bad)}
+.tabs{display:flex;gap:8px;margin-bottom:14px}.tab{background:#f3f4f6;color:var(--muted)}.tab.active{background:var(--primary);color:#fff}.view{display:none}.view.active{display:block}
+.chat{height:310px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fafafa;padding:12px}.msg{max-width:80%;padding:9px 11px;border-radius:10px;margin:0 0 8px}.msg.user{background:var(--primary);color:#fff;margin-left:auto}.msg.assistant{background:#e5e7eb}
+.memory{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #f3f4f6;padding:9px 0}.memory:last-child{border-bottom:0}.hint{color:var(--muted);font-size:13px}.qr{width:210px;height:210px;border:1px solid var(--line);border-radius:8px}.status-panel,.usage-panel{border:1px solid var(--line);border-radius:8px;padding:12px;margin:10px 0;background:#fafafa}.usage-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.usage-item b{display:block;font-size:16px}.usage-item span{display:block;color:var(--muted);font-size:12px}
+a{color:var(--primary);text-decoration:none}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.usage-grid{grid-template-columns:repeat(2,1fr)}.row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div class="header"><h2>Dashboard</h2><button class="btn btn-danger" onclick="logout()">退出</button></div>
-<div class="container">
-<div class="card"><h3>创建机器人</h3><div class="flex"><input id="botName" placeholder="机器人名字" style="flex:1"><button class="btn btn-primary" onclick="createBot()">创建</button></div><div style="background:#f0f4ff;border:1px solid #d0d8ff;border-radius:8px;padding:12px;margin-top:12px"><strong>微信绑定</strong><div style="margin-top:8px"><button class="btn btn-primary" onclick="startQR()">扫码绑定</button><span id="qrStatus" style="font-size:12px;margin-left:8px"></span></div><div id="qrBox" style="display:none;margin-top:8px;text-align:center"><img id="qrImg" style="width:200px;height:200px;border:1px solid #eee"><p style="font-size:12px;color:#666">手机微信扫码，自动绑定</p></div></div><span id="wxStatus" style="font-size:12px"></span></div></div></div></div>
-<div id="botList"></div>
-<div id="detail" class="card" style="display:none"><h3 id="detailName"></h3><div class="flex" style="margin-bottom:12px"><input id="pName" placeholder="名字"><input id="pWarmth" type="number" min="0" max="1" step="0.1" value="0.8" style="width:80px"><button class="btn btn-primary" onclick="saveP()" style="font-size:12px">保存</button></div>
-<div class="chat-box" id="chatBox"></div>
-<div class="chat-row"><input id="chatInput" placeholder="输入消息"><button class="btn btn-primary" onclick="send()" style="font-size:12px">发送</button></div></div>
+<header>
+  <h1>情感 AI 控制台</h1>
+  <div class="actions" style="margin:0"><a href="/admin.html" class="hint">管理后台</a><button class="secondary" onclick="logout()">退出</button></div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="panel">
+      <h2>创建机器人</h2>
+      <input id="newBotName" placeholder="例如：小暖">
+      <div class="actions"><button onclick="createBot()">创建</button></div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <h2>我的机器人</h2>
+      <div id="botList" class="hint">加载中...</div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="stats">
+      <div class="stat"><b id="statBots">0</b><span>机器人</span></div>
+      <div class="stat"><b id="statIn">0</b><span>收到消息</span></div>
+      <div class="stat"><b id="statOut">0</b><span>发出消息</span></div>
+      <div class="stat"><b id="statWx">0</b><span>微信绑定</span></div>
+    </div>
+    <div id="usagePanel" class="usage-panel hint">套餐与额度加载中...</div>
+
+    <div id="empty" class="panel hint">请选择或创建一个机器人。</div>
+    <div id="detail" class="panel" style="display:none">
+      <h2 id="botTitle">机器人</h2>
+      <div class="tabs">
+        <button class="tab active" data-view="settings" onclick="showView('settings')">性格</button>
+        <button class="tab" data-view="memory" onclick="showView('memory')">记忆</button>
+        <button class="tab" data-view="chat" onclick="showView('chat')">测试聊天</button>
+        <button class="tab" data-view="wechat" onclick="showView('wechat')">微信</button>
+      </div>
+
+      <section id="view-settings" class="view active">
+        <div class="row">
+          <div><label>后台显示名</label><input id="botName"></div>
+          <div><label>AI 自称</label><input id="personaName"></div>
+        </div>
+        <label>说话风格</label><input id="speakingStyle" placeholder="温柔细腻，偶尔带点俏皮">
+        <label>背景设定</label><textarea id="background" placeholder="这个机器人是什么样的人，和用户是什么关系"></textarea>
+        <div class="row">
+          <div><label>温柔度 <span id="warmthVal"></span></label><input id="warmth" type="range" min="0" max="1" step="0.1"></div>
+          <div><label>幽默感 <span id="humorVal"></span></label><input id="humor" type="range" min="0" max="1" step="0.1"></div>
+          <div><label>直率度 <span id="directnessVal"></span></label><input id="directness" type="range" min="0" max="1" step="0.1"></div>
+          <div><label>共情力 <span id="empathyVal"></span></label><input id="empathy" type="range" min="0" max="1" step="0.1"></div>
+        </div>
+        <div class="actions"><button onclick="saveSettings()">保存性格</button><span id="saveHint" class="hint"></span></div>
+      </section>
+
+      <section id="view-memory" class="view">
+        <div id="memoryList" class="hint">加载中...</div>
+        <div class="row" style="margin-top:12px">
+          <input id="memoryKey" placeholder="关键词，例如：生日">
+          <input id="memoryValue" placeholder="记忆内容">
+        </div>
+        <div class="actions"><button onclick="addMemory()">添加记忆</button></div>
+      </section>
+
+      <section id="view-chat" class="view">
+        <div id="chatBox" class="chat"></div>
+        <div class="actions"><input id="chatInput" placeholder="输入一句话测试"><button onclick="sendChat()">发送</button></div>
+      </section>
+
+      <section id="view-wechat" class="view">
+        <p class="hint">扫码后，这个微信账号会绑定到当前机器人。状态会显示在线、离线或异常。</p>
+        <div id="wxStatusPanel" class="status-panel">加载微信状态...</div>
+        <div class="actions"><button onclick="startQR()">生成绑定二维码</button><button class="secondary" onclick="cancelQR()">取消扫码</button><button class="secondary" onclick="loadWechatStatus()">刷新状态</button><button class="secondary" onclick="reconnectWechat()">手动重连</button><span id="qrStatus" class="hint"></span></div>
+        <div id="qrBox" style="display:none;margin-top:12px"><img id="qrImg" class="qr"><p class="hint">用手机微信扫码完成绑定。</p></div>
+      </section>
+    </div>
+  </main>
 </div>
+
 <script>
-const T=localStorage.getItem("token");if(!T)location="/";
-async function A(u,o){o=o||{};o.headers={...o.headers,Authorization:"Bearer "+T,"Content-Type":"application/json"};const r=await fetch(u,o);return r.json()}
-async function L(){const d=await A("/api/bots");document.getElementById("botList").innerHTML=d.bots.map(b=>'<div class="bot-card" onclick="S('+b.id+')"><strong>'+b.name+'</strong><span>ID:'+b.id+'</span></div>').join("")}
-async function createBot(){const n=document.getElementById("botName").value;if(!n)return;await A("/api/bots",{method:"POST",body:JSON.stringify({name:n})});document.getElementById("botName").value="";L()}
-let C=null;
-async function S(id){C=id;const d=await A("/api/bots/"+id+"/public");document.getElementById("detail").style.display="block";document.getElementById("detailName").textContent=d.name;document.getElementById("pName").value=d.personality?.name||"";document.getElementById("chatBox").innerHTML=""}
-async function saveP(){const p={name:document.getElementById("pName").value,traits:{warmth:parseFloat(document.getElementById("pWarmth").value)}};await A("/api/bots/"+C,{method:"PUT",body:JSON.stringify({personality:p})});alert("saved")}
-async function send(){const t=document.getElementById("chatInput").value.trim();if(!t)return;document.getElementById("chatInput").value="";const b=document.getElementById("chatBox");b.innerHTML+='<div class="msg user">'+t+'</div><div class="msg assistant" id="load">...</div>';b.scrollTop=b.scrollHeight;const r=await A("/api/chat/"+C,{method:"POST",body:JSON.stringify({text:t})});document.getElementById("load").outerHTML='<div class="msg assistant">'+(r.reply||r.error)+'</div>';b.scrollTop=b.scrollHeight}
-let qrS=null;async function startQR(){document.getElementById("qrStatus").textContent="生成中";const r=await fetch("http://localhost:3002/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({botId:C})});const d=await r.json();if(!d.ok){alert(d.error);return}qrS=d.sessionId;pollQR()}function pollQR(){(async function loop(){const r=await fetch("http://localhost:3002/status?session="+qrS);const d=await r.json();if(d.status==="done"){document.getElementById("qrStatus").textContent="已绑定";document.getElementById("qrBox").style.display="none";await A("/api/bots/"+C+"/wechat-bind",{method:"POST",body:JSON.stringify({token:d.token,wxUserId:d.wxUserId})});return}if(d.qrText){document.getElementById("qrBox").style.display="block";document.getElementById("qrImg").src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data="+encodeURIComponent(d.qrText);document.getElementById("qrStatus").textContent="等待扫码"}setTimeout(loop,2000)})()}async function bindWx(){const t=document.getElementById("wxToken").value;if(!t)return;await bindWechat(t,"")}
-L();
+const token = localStorage.getItem("token");
+if (!token) location = "/";
+const QR_BASE = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+  ? "http://" + location.hostname + ":3002"
+  : location.protocol + "//" + location.hostname + ":3002";
+let bots = [];
+let current = null;
+let qrSession = null;
+let qrPollTimer = null;
+
+async function api(url, options = {}) {
+  options.headers = { ...(options.headers || {}), Authorization: "Bearer " + token, "Content-Type": "application/json" };
+  const res = await fetch(url, options);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "请求失败");
+  return data;
+}
+
+function logout(){ localStorage.removeItem("token"); location="/"; }
+
+function showView(name){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.view===name));
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active", v.id==="view-"+name));
+  if (name === "memory") loadMemories();
+  if (name === "wechat") loadWechatStatus();
+}
+
+function updateRangeLabels(){
+  for (const id of ["warmth","humor","directness","empathy"]) document.getElementById(id+"Val").textContent = document.getElementById(id).value;
+}
+["warmth","humor","directness","empathy"].forEach(id=>document.addEventListener("input", e=>{ if(e.target.id===id) updateRangeLabels(); }));
+
+async function loadUsage(){
+  const panel = document.getElementById("usagePanel");
+  if (!panel) return;
+  try {
+    const data = await api("/api/me/usage");
+    renderUsage(data);
+  } catch(e) {
+    panel.innerHTML = `<span class="badge bad">额度加载失败</span> <span class="hint">${escapeHtml(e.message)}</span>`;
+  }
+}
+
+function renderUsage(data){
+  const plan = data.plan || {};
+  const usage = data.usage || {};
+  const limits = data.limits || {};
+  const remaining = data.remaining || {};
+  document.getElementById("usagePanel").innerHTML = `
+    <div class="usage-grid">
+      <div class="usage-item"><b>${escapeHtml(plan.name || plan.code || "-")}</b><span>当前套餐</span></div>
+      <div class="usage-item"><b>${Number(usage.botCount || 0)} / ${Number(limits.botLimit || 0)}</b><span>机器人</span></div>
+      <div class="usage-item"><b>${Number(usage.wechatCount || 0)} / ${Number(limits.wechatLimit || 0)}</b><span>微信绑定</span></div>
+      <div class="usage-item"><b>${Number(remaining.messages || 0)}</b><span>本月剩余消息</span></div>
+    </div>`;
+}
+
+async function loadBots(){
+  const data = await api("/api/bots");
+  bots = data.bots || [];
+  if (current) current = bots.find(b=>b.id===current.id) || null;
+  document.getElementById("statBots").textContent = bots.length;
+  document.getElementById("statIn").textContent = bots.reduce((n,b)=>n+(b.msg_in||0),0);
+  document.getElementById("statOut").textContent = bots.reduce((n,b)=>n+(b.msg_out||0),0);
+  document.getElementById("statWx").textContent = bots.filter(b=>b.wechatStatus?.isBound || b.has_wechat).length;
+  renderBotList();
+  if (!current && bots.length) await selectBot(bots[0].id);
+  if (!bots.length) {
+    document.getElementById("empty").style.display = "block";
+    document.getElementById("detail").style.display = "none";
+  }
+}
+
+function renderBotList(){
+  document.getElementById("botList").innerHTML = bots.length ? bots.map(b => `
+    <div class="bot ${current&&current.id===b.id?'active':''}" onclick="selectBot(${b.id})">
+      <strong>${escapeHtml(b.name)}</strong>
+      ${wechatBadge(b.wechatStatus)}
+      <small>收 ${b.msg_in||0} / 发 ${b.msg_out||0} · 记忆 ${b.memory_count||0}</small>
+      <small>${b.last_message_at ? '最后消息 '+b.last_message_at : '暂无对话'}</small>
+    </div>`).join("") : "<p class='hint'>还没有机器人。</p>";
+}
+
+async function createBot(){
+  const name = document.getElementById("newBotName").value.trim();
+  if (!name) return;
+  const data = await api("/api/bots", { method:"POST", body: JSON.stringify({ name }) });
+  document.getElementById("newBotName").value = "";
+  await loadUsage();
+  await loadBots();
+  await selectBot(data.botId);
+}
+
+async function selectBot(id){
+  current = bots.find(b=>b.id===id) || null;
+  if (!current) return;
+  renderBotList();
+  document.getElementById("empty").style.display = "none";
+  document.getElementById("detail").style.display = "block";
+  document.getElementById("botTitle").textContent = current.name;
+  const publicInfo = await fetch("/api/bots/"+id+"/public").then(r=>r.json());
+  const p = publicInfo.personality || {};
+  const traits = p.traits || {};
+  const personaName = p.name || p.identity?.aiName || current.name || "";
+  document.getElementById("botName").value = current.name || "";
+  document.getElementById("personaName").value = personaName;
+  document.getElementById("speakingStyle").value = p.speakingStyle || "温柔细腻，偶尔带点俏皮";
+  document.getElementById("background").value = p.background || "";
+  document.getElementById("warmth").value = traits.warmth ?? 0.8;
+  document.getElementById("humor").value = traits.humor ?? 0.5;
+  document.getElementById("directness").value = traits.directness ?? 0.3;
+  document.getElementById("empathy").value = traits.empathy ?? 0.9;
+  updateRangeLabels();
+  document.getElementById("chatBox").innerHTML = "";
+  document.getElementById("saveHint").textContent = "";
+  if (document.getElementById("view-wechat").classList.contains("active")) loadWechatStatus();
+}
+
+async function saveSettings(){
+  if (!current) return;
+  const personaName = document.getElementById("personaName").value.trim() || document.getElementById("botName").value.trim();
+  const personality = {
+    name: personaName,
+    identity: { aiName: personaName },
+    speakingStyle: document.getElementById("speakingStyle").value.trim(),
+    background: document.getElementById("background").value.trim(),
+    traits: {
+      warmth: Number(document.getElementById("warmth").value),
+      humor: Number(document.getElementById("humor").value),
+      directness: Number(document.getElementById("directness").value),
+      empathy: Number(document.getElementById("empathy").value)
+    }
+  };
+  await api("/api/bots/"+current.id, { method:"PUT", body: JSON.stringify({ name: document.getElementById("botName").value.trim(), personality }) });
+  document.getElementById("saveHint").textContent = "已保存";
+  await loadBots();
+}
+
+async function loadMemories(){
+  if (!current) return;
+  const data = await api("/api/bots/"+current.id+"/memories");
+  const memories = data.memories || [];
+  document.getElementById("memoryList").innerHTML = memories.length ? memories.map(m => `
+    <div class="memory">
+      <div><strong>${escapeHtml(m.fact_key)}</strong><div class="hint">${escapeHtml(m.fact_value)}</div></div>
+      <button class="danger" onclick="deleteMemory('${escapeAttr(m.fact_key)}')">删除</button>
+    </div>`).join("") : "<p class='hint'>还没有记忆。</p>";
+}
+
+async function addMemory(){
+  const key = document.getElementById("memoryKey").value.trim();
+  const value = document.getElementById("memoryValue").value.trim();
+  if (!current || !key || !value) return;
+  await api("/api/bots/"+current.id+"/memories", { method:"POST", body: JSON.stringify({ key, value }) });
+  document.getElementById("memoryKey").value = "";
+  document.getElementById("memoryValue").value = "";
+  await loadMemories();
+  await loadUsage();
+  await loadBots();
+}
+
+async function deleteMemory(key){
+  await api("/api/bots/"+current.id+"/memories", { method:"DELETE", body: JSON.stringify({ key }) });
+  await loadMemories();
+  await loadUsage();
+  await loadBots();
+}
+
+async function sendChat(){
+  const input = document.getElementById("chatInput");
+  const text = input.value.trim();
+  if (!current || !text) return;
+  input.value = "";
+  appendMsg("user", text);
+    appendMsg("assistant", "...");
+    const pending = document.querySelector(".msg.assistant:last-child");
+    try {
+      const data = await api("/api/chat/"+current.id, { method:"POST", body: JSON.stringify({ text }) });
+      const parts = Array.isArray(data.replyParts) && data.replyParts.length ? data.replyParts : [data.reply || data.error || "没有回复"];
+      pending.remove();
+      for (const part of parts) appendMsg("assistant", part);
+    } catch(e) {
+      pending.textContent = e.message;
+    }
+  await loadUsage();
+  await loadBots();
+}
+
+function appendMsg(role, text){
+  const box = document.getElementById("chatBox");
+  box.insertAdjacentHTML("beforeend", `<div class="msg ${role}">${escapeHtml(text)}</div>`);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function startQR(){
+  if (!current) return;
+  stopQRPoll();
+  setQRMessage("正在生成二维码...");
+  document.getElementById("qrBox").style.display = "none";
+  try {
+    const res = await fetch(QR_BASE + "/start", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ botId: current.id }) });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      setQRMessage(data.error || "二维码生成失败，请稍后重试", true);
+      return;
+    }
+    qrSession = data.sessionId;
+    setQRMessage(`等待扫码，${data.remainingSeconds || 120} 秒后过期`);
+    pollQR();
+  } catch(e) {
+    setQRMessage("二维码服务连接失败，请确认本地 QR 服务正在运行", true);
+  }
+}
+
+async function pollQR(){
+  if (!qrSession) return;
+  try {
+    const res = await fetch(QR_BASE + "/status?session="+qrSession);
+    const data = await res.json();
+    if (data.status === "done") {
+      stopQRPoll();
+      await api("/api/bots/"+current.id+"/wechat-bind", { method:"POST", body: JSON.stringify({ token:data.token, wxUserId:data.wxUserId }) });
+      setQRMessage("已绑定，等待微信桥接上线");
+      document.getElementById("qrBox").style.display = "none";
+      await loadUsage();
+      await loadBots();
+      await loadWechatStatus();
+      return;
+    }
+    if (data.status === "expired") {
+      stopQRPoll();
+      document.getElementById("qrBox").style.display = "none";
+      setQRMessage(data.error || "二维码已过期，请重新生成", true);
+      return;
+    }
+    if (data.status === "error") {
+      stopQRPoll();
+      setQRMessage(data.error || "扫码状态异常，请重新生成", true);
+      return;
+    }
+    if (data.status === "not_found") {
+      stopQRPoll();
+      document.getElementById("qrBox").style.display = "none";
+      setQRMessage(data.error || "二维码会话已失效，请重新生成", true);
+      return;
+    }
+    if (data.qrText) {
+      document.getElementById("qrBox").style.display = "block";
+      document.getElementById("qrImg").src = "https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=" + encodeURIComponent(data.qrText);
+      setQRMessage(`等待扫码，${data.remainingSeconds || 0} 秒后过期`);
+    }
+    qrPollTimer = setTimeout(pollQR, 2000);
+  } catch(e) {
+    stopQRPoll();
+    setQRMessage("扫码状态获取失败，请检查二维码服务后重新生成", true);
+    return;
+  }
+}
+
+function stopQRPoll(){
+  if (qrPollTimer) clearTimeout(qrPollTimer);
+  qrPollTimer = null;
+}
+
+async function cancelQR(){
+  if (!qrSession) return;
+  stopQRPoll();
+  try {
+    await fetch(QR_BASE + "/cancel?session=" + encodeURIComponent(qrSession), { method: "POST" });
+  } catch {}
+  qrSession = null;
+  document.getElementById("qrBox").style.display = "none";
+  setQRMessage("扫码已取消");
+}
+
+async function reconnectWechat(){
+  if (!current) return;
+  setQRMessage("正在刷新微信连接状态...");
+  try {
+    await loadWechatStatus();
+    setQRMessage("已刷新状态，bridge 会在下一轮轮询中重连");
+  } catch(e) {
+    setQRMessage("重连检查失败: " + e.message, true);
+  }
+}
+
+function setQRMessage(message, isError = false){
+  const target = document.getElementById("qrStatus");
+  target.textContent = message;
+  target.style.color = isError ? "var(--bad)" : "var(--muted)";
+}
+
+async function loadWechatStatus(){
+  const panel = document.getElementById("wxStatusPanel");
+  if (!panel || !current) return;
+  try {
+    const data = await api("/api/bots/"+current.id+"/wechat-status");
+    current.wechatStatus = data.status;
+    const status = data.status || { status:"unbound", label:"未绑定" };
+    const detail = status.status === "error"
+      ? `<div class="hint">最近错误：${escapeHtml(status.lastError || "微信连接异常")}</div>`
+      : `<div class="hint">${status.lastSeenAt ? "最近在线：" + escapeHtml(formatTime(status.lastSeenAt)) : "还没有 bridge 在线心跳"}</div>`;
+    panel.innerHTML = `<strong>微信状态：</strong>${wechatBadge(status)}${detail}`;
+    renderBotList();
+  } catch(e) {
+    panel.innerHTML = `<strong>微信状态：</strong><span class="badge bad">状态获取失败</span><div class="hint">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function wechatBadge(status){
+  const s = status || { status:"unbound", label:"未绑定" };
+  const cls = s.status === "online" ? "ok" : s.status === "error" ? "bad" : "";
+  return `<span class="badge ${cls}">${escapeHtml(s.label || "未绑定")}</span>`;
+}
+function formatTime(value){ return String(value || "").replace("T", " ").slice(0, 19); }
+function escapeHtml(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s).replace(/`/g,"&#96;"); }
+
+loadUsage();
+loadBots();
 </script>
 </body>
 </html>

@@ -5,12 +5,35 @@
   "description": "有记忆的情感 AI 聊天系统",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "postinstall": "pip install edge-tts 2>/dev/null || echo 'edge-tts install skipped (no python)'",
+    "dev": "node --watch server/index.js",
+    "check:core": "node scripts/check-core-behavior.mjs",
+    "check:api": "node scripts/check-api-behavior.mjs",
+    "check:qr": "node scripts/check-qr-behavior.mjs",
+    "check:plan": "node scripts/check-plan-behavior.mjs",
+    "check:bridge": "node scripts/check-bridge-behavior.mjs",
+    "check:ui": "node scripts/check-dashboard-ui.mjs",
+    "check:admin": "node scripts/check-admin-orders.mjs",
+    "check:admin-ui": "node scripts/check-admin-ui.mjs",
+    "check:memory": "node scripts/check-memory-behavior.mjs",
+    "check:unique-admin": "node scripts/check-unique-admin.mjs",
+    "companion:install": "python -m venv .venv && .venv\\Scripts\\python -m pip install -r companion_core\\requirements.txt",
+    "companion:start": ".venv\\Scripts\\python -m uvicorn companion_core.app:app --host 127.0.0.1 --port 3105",
+    "check:companion-core": "node scripts/check-companion-core.mjs",
+    "check:companion-db": "node scripts/check-companion-db.mjs",
+    "check:companion-client": "node scripts/check-companion-client.mjs",
+    "check:companion-integration": "node scripts/check-companion-integration.mjs",
+    "check:companion-model": "node scripts/check-companion-model.mjs",
+    "admin:ensure": "node scripts/ensure-single-admin.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",
     "express": "^4.21.0",
     "jsonwebtoken": "^9.0.3",
-    "openai": "^4.73.0"
+    "openai": "^4.73.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "localtunnel": "^2.0.2"
   }
 }
