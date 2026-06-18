@@ -21,6 +21,28 @@ node daemon.js
 
 ## 云端部署
 
+### Render (推荐 — 支持语音消息)
+
+1. 打开 [Render Dashboard](https://dashboard.render.com) → New → Web Service
+2. 连接仓库 `xiongjietong-cmd/emotion-ai-companion`
+3. 配置:
+   - **Runtime**: Node
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+4. 环境变量 (Environment):
+   - `DEEPSEEK_API_KEY` = `sk-xxx` (必填)
+   - `PORT` = `3000`
+5. 点击 Create Web Service
+6. 部署完成后获得公网 URL，例如 `https://emotion-ai-companion.onrender.com`
+
+部署后本地 bridge 设置:
+```powershell
+$env:TUNNEL_URL="https://你的服务名.onrender.com"
+node multi-wechat-bridge.js
+```
+
+语音消息会通过 Render 公网 URL 投递到微信。
+
 ### 腾讯云轻量服务器
 
 ```bash
