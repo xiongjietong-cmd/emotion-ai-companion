@@ -1,67 +1,255 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>管理面板</title>
+<title>管理后台</title>
 <style>
-:root{--primary:#6366f1;--bg:#f8fafc;--card:#fff;--text:#1e293b;--sub:#94a3b8;--shadow:0 1px 3px rgba(0,0,0,.06)}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Inter",-apple-system,sans-serif;background:var(--bg);color:var(--text)}
-nav{background:var(--card);border-bottom:1px solid #e2e8f0;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px}
-nav h1{font-size:18px;font-weight:600;color:var(--primary)}
-nav a{color:var(--sub);text-decoration:none;font-size:14px}
-.main{max-width:1100px;margin:0 auto;padding:24px 16px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
-.stat{background:var(--card);border-radius:12px;padding:24px;text-align:center;box-shadow:var(--shadow);border:1px solid #e2e8f0}
-.stat .num{font-size:42px;font-weight:700;color:var(--primary)}
-.stat .label{font-size:13px;color:var(--sub);margin-top:4px}
-.card{background:var(--card);border-radius:12px;padding:24px;box-shadow:var(--shadow);border:1px solid #e2e8f0;margin-bottom:16px}
-.card h2{font-size:16px;margin-bottom:16px}
-table{width:100%;border-collapse:collapse}
-th,td{text-align:left;padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:14px}
-th{color:var(--sub);font-weight:500;font-size:12px;text-transform:uppercase}
-tr:hover{background:#f8fafc}
-.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:500}
-.badge-green{background:#dcfce7;color:#166534}
-.badge-red{background:#fef2f2;color:#991b1b}
-.badge-gray{background:#f1f5f9;color:#64748b}
-.empty{text-align:center;color:var(--sub);padding:60px;font-size:15px}
+:root{--bg:#f6f7fb;--panel:#fff;--line:#e5e7eb;--text:#1f2937;--muted:#6b7280;--primary:#2563eb;--ok:#15803d;--bad:#b91c1c;--warn:#b45309}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{height:58px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 22px}
+h1{font-size:18px;margin:0}.wrap{max-width:1240px;margin:18px auto;padding:0 16px}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px}
+.metric,.section{background:var(--panel);border:1px solid var(--line);border-radius:8px}.metric{padding:16px}.metric b{display:block;font-size:26px}.metric span{font-size:12px;color:var(--muted)}
+.section{margin-bottom:12px;overflow:hidden}.section-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}.section-head h2{font-size:15px;margin:0}
+.section-body{padding:16px}.collapsed .section-body{display:none}.toggle{background:#eef2ff;color:var(--primary);border:0;border-radius:6px;padding:7px 10px;cursor:pointer}
+table{width:100%;border-collapse:collapse}th,td{font-size:13px;text-align:left;border-bottom:1px solid #f1f5f9;padding:10px}th{color:var(--muted);font-weight:600}.muted{color:var(--muted)}.row-actions{display:flex;gap:6px;flex-wrap:wrap}
+button{border:0;border-radius:6px;padding:8px 10px;cursor:pointer;background:var(--primary);color:#fff;font-weight:600}button.secondary{background:#eef2ff;color:var(--primary)}button.warn{background:#fef3c7;color:var(--warn)}button.danger{background:#fee2e2;color:var(--bad)}
+.badge{display:inline-block;border-radius:999px;padding:2px 8px;font-size:12px;background:#f3f4f6;color:var(--muted)}.badge.ok{background:#dcfce7;color:var(--ok)}.badge.bad{background:#fee2e2;color:var(--bad)}
+.bars{display:flex;align-items:flex-end;gap:10px;height:170px;padding-top:14px}.bar-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}.bar{width:100%;max-width:58px;background:var(--primary);border-radius:5px 5px 0 0;min-height:4px}.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.filters button.active{background:var(--primary);color:#fff}.modal{position:fixed;inset:0;background:rgba(15,23,42,.35);display:none;align-items:center;justify-content:center;padding:16px}.modal.open{display:flex}.dialog{width:min(440px,100%);background:#fff;border-radius:8px;padding:18px;border:1px solid var(--line)}.dialog textarea{width:100%;min-height:82px;border:1px solid var(--line);border-radius:7px;padding:10px}
+a{color:var(--primary);text-decoration:none}@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.wrap{padding:0 10px}table{display:block;overflow:auto}}
 </style>
 </head>
 <body>
-<nav><h1>📊 管理面板</h1><div><a href="/dashboard.html">用户后台</a><span style="color:#cbd5e1;margin:0 12px">|</span><a href="/">首页</a></div></nav>
-<div class="main" id="app"><div class="empty">加载中...</div></div>
+<header><h1>管理后台</h1><nav><a href="/dashboard.html">用户前端</a> <span class="muted">/</span> <a href="/">首页</a></nav></header>
+<main class="wrap" id="app"><p class="muted">加载中...</p></main>
+
+<div class="modal" id="adminActionModal">
+  <div class="dialog">
+    <h2 id="actionTitle">账号操作</h2>
+    <p id="actionText" class="muted"></p>
+    <textarea id="actionReason" placeholder="原因或备注，可为空"></textarea>
+    <div class="row-actions" style="justify-content:flex-end;margin-top:12px">
+      <button class="secondary" type="button" onclick="closeAdminAction()">取消</button>
+      <button class="danger" type="button" onclick="confirmAdminAction()">确认</button>
+    </div>
+  </div>
+</div>
+
 <script>
-const T=localStorage.getItem("token");if(!T)location="/";
-(async function(){
-const r=await fetch("/api/admin/stats",{headers:{Authorization:"Bearer "+T}});
-const d=await r.json();
-if(!d.ok){location="/";return}
-const s=d.stats;
-document.getElementById("app").innerHTML=
-`<div class="stats">
-<div class="stat"><div class="num">${s.userCount}</div><div class="label">注册用户</div></div>
-<div class="stat"><div class="num">${s.botCount}</div><div class="label">机器人总数</div></div>
-<div class="stat"><div class="num">${s.msgCount}</div><div class="label">消息总数</div></div>
-<div class="stat"><div class="num">${s.wechatCount}</div><div class="label">微信在线</div></div>
-<div class="stat"><div class="num">${s.todayMsgs}</div><div class="label">今日消息</div></div>
-</div>
-<div class="card"><h2>用户列表</h2><table><tr><th>ID</th><th>邮箱</th><th>角色</th><th>注册时间</th></tr>${d.users.map(u=>`<tr><td>${u.id}</td><td>${u.email}</td><td>${u.role==='admin'?'<span class="badge badge-green">管理员</span>':'<span class="badge badge-gray">用户</span>'}</td><td>${(u.created_at||'').slice(0,10)}</td></tr>`).join('')}</table></div>
-<div class="card"><h2>机器人列表</h2><table><tr><th>ID</th><th>名称</th><th>所有者</th><th>状态</th><th>微信</th></tr>${d.bots.map(b=>`<tr><td>${b.id}</td><td>${b.name}</td><td>${b.owner}</td><td>${b.active?'<span class="badge badge-green">运行中</span>':'<span class="badge badge-red">已停用</span>'}</td><td>${b.hasWechat?'<span class="badge badge-green">已绑定</span>':'<span class="badge badge-gray">未绑定</span>'}</td></tr>`).join('')}</table>
-<div class="card"><h2>最近7天消息量</h2>
-<div style="display:flex;align-items:flex-end;gap:8px;height:160px;padding:16px 0">
-${d.msgStats.map(s=>`
-<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-<div style="background:var(--primary);width:100%;max-width:60px;border-radius:4px 4px 0 0;height:${Math.max(4,(s.msg_in||0)*2)}px;min-height:4px;transition:height .3s" title="${s.date}: 收${s.msg_in} 发${s.msg_out}"></div>
-<span style="font-size:10px;color:var(--sub)">${(s.date||'').slice(5)}</span>
-</div>
-`).join('')}
-</div>
-</div>
-</div>`;
-})();
+const token = localStorage.getItem("token");
+if (!token) location = "/";
+let adminState = { stats:null, orders:[], orderStats:{}, analytics:{}, events:[], users:[], bots:[], msgStats:[] };
+let collapsedSections = new Set(["account-events", "orders", "bots"]);
+let userFilter = "active";
+let pendingAction = null;
+
+async function api(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: { "Content-Type":"application/json", Authorization:"Bearer " + token, ...(options.headers || {}) }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) throw new Error(data.error || "请求失败");
+  return data;
+}
+
+async function loadAdmin() {
+  try {
+    const [stats, orders, analytics, events] = await Promise.all([
+      api("/api/admin/stats"),
+      api("/api/admin/orders"),
+      api("/api/admin/analytics"),
+      api("/api/admin/account-events")
+    ]);
+    adminState = {
+      stats: stats.stats || {},
+      msgStats: stats.msgStats || [],
+      users: stats.users || [],
+      bots: stats.bots || [],
+      orders: orders.orders || [],
+      orderStats: orders.orderStats || {},
+      analytics,
+      events: events.events || []
+    };
+    renderAdmin();
+  } catch (error) {
+    document.getElementById("app").innerHTML = `<p class="muted">加载失败：${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function renderAdmin() {
+  const s = adminState.stats || {};
+  document.getElementById("app").innerHTML = `
+    <div class="grid">
+      ${metric("注册用户", s.userCount)}
+      ${metric("机器人", s.botCount)}
+      ${metric("消息总数", s.msgCount)}
+      ${metric("微信绑定", s.wechatCount)}
+      ${metric("今日消息", s.todayMsgs)}
+    </div>
+    ${renderAnalytics(adminState.analytics)}
+    ${renderCollapsibleSection("users", "用户列表", renderUserFilter() + renderUsers())}
+    ${renderCollapsibleSection("bots", "机器人明细", renderBots())}
+    ${renderCollapsibleSection("orders", "订单明细", renderOrders(adminState.orders, adminState.orderStats))}
+    ${renderCollapsibleSection("account-events", "账号行为记录", renderAccountEvents(adminState.events))}
+  `;
+}
+
+function metric(label, value) {
+  return `<div class="metric"><b>${Number(value || 0)}</b><span>${label}</span></div>`;
+}
+
+function renderCollapsibleSection(id, title, body) {
+  const collapsed = collapsedSections.has(id);
+  return `<section class="section ${collapsed ? "collapsed" : ""}" id="section-${id}">
+    <div class="section-head">
+      <h2>${title}</h2>
+      <button class="toggle" type="button" data-toggle-section="${id}">${collapsed ? "展开" : "收起"}</button>
+    </div>
+    <div class="section-body">${body}</div>
+  </section>`;
+}
+
+function toggleSection(id) {
+  if (collapsedSections.has(id)) collapsedSections.delete(id);
+  else collapsedSections.add(id);
+  renderAdmin();
+}
+
+function renderAnalytics(data = {}) {
+  const msgStats = adminState.msgStats || [];
+  const maxTotal = Math.max(1, ...msgStats.map((row) => Number(row.msg_in || 0) + Number(row.msg_out || 0)));
+  const bars = msgStats.map((row) => {
+    const total = Number(row.msg_in || 0) + Number(row.msg_out || 0);
+    const barHeight = Math.max(4, Math.round((total / maxTotal) * 130));
+    return `<div class="bar-item"><div class="bar" style="height:${barHeight}px" title="${escapeHtml(row.date || "")}: ${total}"></div><span class="muted">${escapeHtml((row.date || "").slice(5))}</span></div>`;
+  }).join("");
+  return `<section class="section"><div class="section-head"><h2>近七天概览</h2><span class="muted">DAU ${Number(data.dau || 0)} / WAU ${Number(data.wau || 0)}</span></div><div class="section-body"><div class="bars">${bars || "<p class='muted'>暂无消息数据</p>"}</div></div></section>`;
+}
+
+function renderUserFilter() {
+  const items = [["active","正常账号"],["blacklisted","已拉黑"],["all","全部"]];
+  return `<div class="filters">${items.map(([key,label]) => `<button class="secondary ${userFilter === key ? "active" : ""}" type="button" onclick="filterAdminUsers('${key}')">${label}</button>`).join("")}</div>`;
+}
+
+function filterAdminUsers(nextFilter) {
+  userFilter = nextFilter;
+  renderAdmin();
+}
+
+function renderUsers() {
+  const rows = (adminState.users || []).filter((user) => {
+    if (userFilter === "all") return true;
+    if (userFilter === "blacklisted") return user.status === "blacklisted";
+    return user.status !== "deleted" && user.status !== "blacklisted";
+  });
+  if (!rows.length) return `<p class="muted">暂无用户。</p>`;
+  return `<table><thead><tr><th>ID</th><th>邮箱</th><th>角色</th><th>状态</th><th>登录方式</th><th>登录账号</th><th>邀请码</th><th>操作</th></tr></thead><tbody>
+    ${rows.map((user) => `<tr>
+      <td>${user.id}</td>
+      <td>${escapeHtml(user.email)}</td>
+      <td>${escapeHtml(user.role)}</td>
+      <td>${statusBadge(user.status)}</td>
+      <td>${loginMethodLabel(user.last_login_method)}</td>
+      <td>${escapeHtml(user.last_login_account || "-")}</td>
+      <td>${escapeHtml(user.invite_code || "-")}</td>
+      <td>${renderUserActions(user)}</td>
+    </tr>`).join("")}
+  </tbody></table>`;
+}
+
+function loginMethodLabel(method) {
+  const labels = { email_password:"邮箱密码", email_code:"邮箱验证码", phone_code:"手机号验证码" };
+  return labels[method] || method || "-";
+}
+
+function statusBadge(status) {
+  if (status === "blacklisted") return `<span class="badge bad">已拉黑</span>`;
+  if (status === "deleted") return `<span class="badge bad">已删除</span>`;
+  return `<span class="badge ok">正常</span>`;
+}
+
+function renderUserActions(user) {
+  if (user.role === "admin") return `<span class="muted">管理员账号</span>`;
+  return `<div class="row-actions">
+    ${user.status === "blacklisted"
+      ? `<button class="secondary" type="button" data-user-action="restore" data-user-id="${user.id}" data-user-email="${escapeHtml(user.email)}">解除拉黑</button>`
+      : `<button class="warn" type="button" data-user-action="blacklist" data-user-id="${user.id}" data-user-email="${escapeHtml(user.email)}">拉黑</button>`}
+    <button class="danger" type="button" data-user-action="delete" data-user-id="${user.id}" data-user-email="${escapeHtml(user.email)}">永久删除</button>
+  </div>`;
+}
+
+function renderBots() {
+  const rows = adminState.bots || [];
+  if (!rows.length) return `<p class="muted">暂无机器人。</p>`;
+  return `<table><thead><tr><th>ID</th><th>名称</th><th>所有者</th><th>状态</th><th>微信</th><th>收/发</th><th>最后消息</th></tr></thead><tbody>
+    ${rows.map((bot) => `<tr><td>${bot.id}</td><td>${escapeHtml(bot.name)}</td><td>${escapeHtml(bot.owner)}</td><td>${bot.active ? "<span class='badge ok'>运行中</span>" : "<span class='badge bad'>已停用</span>"}</td><td>${bot.hasWechat ? "<span class='badge ok'>已绑定</span>" : "<span class='badge'>未绑定</span>"}</td><td>${Number(bot.msgIn || 0)} / ${Number(bot.msgOut || 0)}</td><td>${escapeHtml(bot.last_message_at || "-")}</td></tr>`).join("")}
+  </tbody></table>`;
+}
+
+function renderOrders(orders = [], orderStats = {}) {
+  if (!orders.length) return `<p class="muted">暂无订单。已支付金额 ${Number(orderStats.paidAmount || 0)} 元。</p>`;
+  return `<p class="muted">订单 ${Number(orderStats.orderCount || 0)}，已支付 ${Number(orderStats.paidAmount || 0)} 元，待处理 ${Number(orderStats.pendingCount || 0)}</p>
+  <table><thead><tr><th>ID</th><th>账号</th><th>套餐</th><th>金额</th><th>状态</th><th>创建时间</th></tr></thead><tbody>
+    ${orders.map((order) => `<tr><td>${order.id}</td><td>${escapeHtml(order.user_email || "-")}</td><td>${escapeHtml(order.plan)}</td><td>${Number(order.amount || 0)}</td><td>${escapeHtml(order.status)}</td><td>${escapeHtml(order.created_at || "")}</td></tr>`).join("")}
+  </tbody></table>`;
+}
+
+function renderAccountEvents(events = []) {
+  if (!events.length) return `<p class="muted">暂无账号行为记录。</p>`;
+  return `<table><thead><tr><th>时间</th><th>账号</th><th>机器人</th><th>行为</th><th>渠道</th><th>详情</th></tr></thead><tbody>
+    ${events.map((event) => `<tr><td>${escapeHtml(event.created_at || "")}</td><td>${escapeHtml(event.user_email || "-")}</td><td>${escapeHtml(event.bot_name || "-")}</td><td>${escapeHtml(event.action)}</td><td>${escapeHtml(event.channel || "-")}</td><td>${escapeHtml(event.detail || "")}</td></tr>`).join("")}
+  </tbody></table>`;
+}
+
+function openUserAction(action, userId, email) {
+  pendingAction = { action, userId };
+  const labels = { blacklist:"拉黑", restore:"解除拉黑", delete:"永久删除" };
+  document.getElementById("actionTitle").textContent = labels[action] || "账号操作";
+  document.getElementById("actionText").textContent = `${labels[action] || "操作"}账号：${email}`;
+  document.getElementById("actionReason").value = "";
+  document.getElementById("adminActionModal").classList.add("open");
+}
+
+function closeAdminAction() {
+  pendingAction = null;
+  document.getElementById("adminActionModal").classList.remove("open");
+}
+
+async function confirmAdminAction() {
+  if (!pendingAction) return;
+  const reason = document.getElementById("actionReason").value.trim();
+  const { action, userId } = pendingAction;
+  if (action === "blacklist") await blacklistUser(userId, reason);
+  if (action === "restore") await restoreUser(userId);
+  if (action === "delete") await deleteUser(userId, reason);
+  closeAdminAction();
+  await loadAdmin();
+}
+
+async function blacklistUser(userId, reason = "") {
+  return api(`/api/admin/users/${userId}/blacklist`, { method:"POST", body:JSON.stringify({ reason }) });
+}
+async function restoreUser(userId) {
+  return api(`/api/admin/users/${userId}/restore`, { method:"POST", body:JSON.stringify({}) });
+}
+async function deleteUser(userId, reason = "") {
+  return api(`/api/admin/users/${userId}`, { method:"DELETE", body:JSON.stringify({ reason }) });
+}
+
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest("[data-toggle-section]");
+  if (toggle) toggleSection(toggle.dataset.toggleSection);
+  const actionButton = event.target.closest("[data-user-action]");
+  if (actionButton) openUserAction(actionButton.dataset.userAction, actionButton.dataset.userId, actionButton.dataset.userEmail);
+});
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[char]));
+}
+
+loadAdmin();
 </script>
-<footer style="text-align:center;padding:24px;color:#94a3b8;font-size:13px">© 2026 Emotion AI</footer>
 </body>
 </html>

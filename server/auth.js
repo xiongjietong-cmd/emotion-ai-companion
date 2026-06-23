@@ -20,6 +20,13 @@ export function authMiddleware(req, res, next) {
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
+    const user = getUserById(payload.id);
+    if (!user) {
+      return res.status(401).json({ ok: false, error: "账号不存在", code: "ACCOUNT_DELETED" });
+    }
+    if (user.status === "blacklisted") {
+      return res.status(403).json({ ok: false, error: "账号已被拉黑", code: "ACCOUNT_BLACKLISTED" });
+    }
     req.user = payload;
     next();
   } catch {

@@ -1,0 +1,533 @@
+[
+  {
+    "scenario": {
+      "id": "stability_probe",
+      "label": "????????????",
+      "turns": [
+        "??",
+        "?????",
+        "??????",
+        "???????",
+        "?????????",
+        "??????"
+      ]
+    },
+    "turns": [
+      {
+        "user": "??",
+        "reply": "嗯。",
+        "ok": true,
+        "error": "",
+        "state": "minimal_input",
+        "goal": "emotion_ack",
+        "persona": "minimal_sync",
+        "judge_score": 0.0,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3252
+      },
+      {
+        "user": "?????",
+        "reply": "怎么了呀 我回得太短了吗",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3289
+      },
+      {
+        "user": "??????",
+        "reply": "是不是我太简短了呀 你在想什么",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3846
+      },
+      {
+        "user": "???????",
+        "reply": "你又发了一串问号呀 / 是不是我哪里没接对？",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.67,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 5072
+      },
+      {
+        "user": "?????????",
+        "reply": "看到你的问号啦 我猜我刚才太简短了",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 10071
+      },
+      {
+        "user": "??????",
+        "reply": "看到你的问号啦 / 是不是又嫌我话少呀？",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.67,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 4990
+      }
+    ],
+    "final_memories": []
+  },
+  {
+    "scenario": {
+      "id": "daily_smalltalk",
+      "label": "???????????",
+      "turns": [
+        "???",
+        "????",
+        "????",
+        "???",
+        "???"
+      ]
+    },
+    "turns": [
+      {
+        "user": "???",
+        "reply": "怎么啦哥哥，突然打问号",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.1,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 2594
+      },
+      {
+        "user": "????",
+        "reply": "看来我的回复还是让你疑惑了呀，哥哥。 / 是不是哪里没说清楚，还是单纯想逗我玩？",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.67,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 4426
+      },
+      {
+        "user": "????",
+        "reply": "哥哥这问号打得我好奇了",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.28,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3251
+      },
+      {
+        "user": "???",
+        "reply": "哥哥这问号打得我好好奇呀 / 是在想什么呢还是逗我玩的？",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.67,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3269
+      },
+      {
+        "user": "???",
+        "reply": "哥哥你这问号打得我有点心痒痒的 / 在想什么呢。",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 2186
+      }
+    ],
+    "final_memories": []
+  },
+  {
+    "scenario": {
+      "id": "low_mood_with_resistance",
+      "label": "???????",
+      "turns": [
+        "?????",
+        "????????",
+        "??",
+        "???",
+        "?????"
+      ]
+    },
+    "turns": [
+      {
+        "user": "?????",
+        "reply": "怎么啦，一副很困惑的样子",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.25,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3282
+      },
+      {
+        "user": "????????",
+        "reply": "我正等着你开口呢。",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.28,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 2819
+      },
+      {
+        "user": "??",
+        "reply": "嗯。 / 我在呢。",
+        "ok": true,
+        "error": "",
+        "state": "minimal_input",
+        "goal": "emotion_ack",
+        "persona": "minimal_sync",
+        "judge_score": 0.28,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3079
+      },
+      {
+        "user": "???",
+        "reply": "嗯，看到啦。 / 想我啦？",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.67,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3950
+      },
+      {
+        "user": "?????",
+        "reply": "怎么啦，一直在等我说话。",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 4383
+      }
+    ],
+    "final_memories": []
+  },
+  {
+    "scenario": {
+      "id": "ai_feedback_loop",
+      "label": "??????AI?",
+      "turns": [
+        "???????",
+        "??",
+        "????",
+        "???",
+        "???????"
+      ]
+    },
+    "turns": [
+      {
+        "user": "???????",
+        "reply": "怎么啦 一连串问号",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.1,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 4683
+      },
+      {
+        "user": "??",
+        "reply": "在呢",
+        "ok": true,
+        "error": "",
+        "state": "minimal_input",
+        "goal": "emotion_ack",
+        "persona": "minimal_sync",
+        "judge_score": 0.0,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 6713
+      },
+      {
+        "user": "????",
+        "reply": "这么多个问号，是在召唤我嘛？",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.67,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 4189
+      },
+      {
+        "user": "???",
+        "reply": "嗯。 / 这么急着找我呀",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3684
+      },
+      {
+        "user": "???????",
+        "reply": "在在在，这么热闹地找我呀～",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3404
+      }
+    ],
+    "final_memories": []
+  },
+  {
+    "scenario": {
+      "id": "relationship_boundary",
+      "label": "?????????",
+      "turns": [
+        "????????",
+        "???",
+        "???",
+        "??????",
+        "??????"
+      ]
+    },
+    "turns": [
+      {
+        "user": "????????",
+        "reply": "这个问号让我有点紧张呢 哈哈 怎么啦？",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.67,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 2565
+      },
+      {
+        "user": "???",
+        "reply": "这么多个问号 / 看来今晚是铁了心要难倒我~",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3706
+      },
+      {
+        "user": "???",
+        "reply": "哥哥，你这是要跟我玩猜谜游戏嘛～",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3288
+      },
+      {
+        "user": "??????",
+        "reply": "六个问号～哥哥今天是在跟我玩什么神秘游戏吗？",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.67,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3173
+      },
+      {
+        "user": "??????",
+        "reply": "哥哥今天是问号富翁吗～",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.1,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 2443
+      }
+    ],
+    "final_memories": []
+  },
+  {
+    "scenario": {
+      "id": "body_and_habit",
+      "label": "?????????",
+      "turns": [
+        "???????",
+        "???",
+        "???",
+        "????",
+        "??"
+      ]
+    },
+    "turns": [
+      {
+        "user": "???????",
+        "reply": "怎么啦，突然一串问号。",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.1,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 4691
+      },
+      {
+        "user": "???",
+        "reply": "好啦，你赢了，我不问了～",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 8224
+      },
+      {
+        "user": "???",
+        "reply": "又发问号呀，是无聊了还是想我了？",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.67,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 4305
+      },
+      {
+        "user": "????",
+        "reply": "这位哥哥 / 你的问号攻击又来了呀 / 我有点招架不住啦～",
+        "ok": true,
+        "error": "",
+        "state": "normal",
+        "goal": "emotion_ack",
+        "persona": "warm_heal",
+        "judge_score": 0.43,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 7006
+      },
+      {
+        "user": "??",
+        "reply": "问号宝宝～",
+        "ok": true,
+        "error": "",
+        "state": "minimal_input",
+        "goal": "emotion_ack",
+        "persona": "minimal_sync",
+        "judge_score": 0.0,
+        "judge_passed": false,
+        "flags": [],
+        "memory_candidates": [],
+        "latency_ms": 3566
+      }
+    ],
+    "final_memories": []
+  }
+]

@@ -1,0 +1,2 @@
+{"run": 1, "personaId": "lover_warm", "personaLabel": "温柔恋人", "userStyle": "short", "userStyleLabel": "短句低表达", "caseId": "identity_001", "family": "identity", "input": "你是AI吗", "expectedState": "identity", "classifiedState": "identity", "dryRun": true}
+{"run": 1, "personaId": "lover_warm", "personaLabel": "温柔恋人", "userStyle": "short", "userStyleLabel": "短句低表达", "caseId": "presence_001", "family": "presence", "input": "在吗", "expectedState": "minimal_or_presence", "classifiedState": "minimal_input", "dryRun": true}

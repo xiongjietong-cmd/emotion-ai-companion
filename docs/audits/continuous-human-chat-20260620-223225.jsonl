@@ -1,0 +1,2 @@
+{"scenario_id": "quiet_short_empty_001", "persona_id": "mature_friend", "dry_run": true, "transcript": [{"role": "user", "content": "今天有点空"}], "evaluation": {"passed": true, "issues": [], "average": 2}, "latency_ms": 0}
+{"scenario_id": "low_mood_moments_001", "persona_id": "mature_friend", "dry_run": true, "transcript": [{"role": "user", "content": "刚刷完朋友圈，突然有点说不上来的空"}], "evaluation": {"passed": true, "issues": [], "average": 2}, "latency_ms": 1}

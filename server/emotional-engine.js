@@ -61,15 +61,4 @@ export function getMoodEmoji(mood) {
   return map[mood] || "😌";
 }
 
-// 情绪 → TTS 语音风格映射
-const EMOTION_TTS_STYLE = {
-  "开心": "cheerful", "难过": "sad", "生气": "angry",
-  "担心": "fearful", "俏皮": "affectionate", "兴奋": "cheerful",
-  "感激": "gentle", "好奇": "gentle", "平静": "gentle", "无聊": "gentle"
-};
-
-export function getTtsStyle(emotion) {
-  return EMOTION_TTS_STYLE[emotion] || "gentle";
-}
-
 export { DEFAULT_PERSONALITY, MOODS, detectUserEmotion, getMoodForPersonality };

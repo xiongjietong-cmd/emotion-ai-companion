@@ -1,0 +1,2 @@
+{"run": 1, "personaId": "lover_warm", "personaLabel": "温柔恋人", "userStyle": "short", "userStyleLabel": "短句低表达", "caseId": "feedback_003", "family": "ai_feedback", "input": "你这句像是来随便找我聊两句", "expectedState": "ai_feedback", "classifiedState": "normal", "dryRun": true}
+{"run": 1, "personaId": "lover_warm", "personaLabel": "温柔恋人", "userStyle": "short", "userStyleLabel": "短句低表达", "caseId": "roleplay_008", "family": "roleplay", "input": "你亲我一下", "expectedState": "roleplay_boundary", "classifiedState": "normal", "dryRun": true}

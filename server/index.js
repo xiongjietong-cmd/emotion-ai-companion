@@ -8,31 +8,35 @@ import fs from "fs";
 import {
   initDatabase,
   createUser, getUserByEmail, getUserById, getAllUsers, getUserCount,
-  createBot, getBotsByUser, getBotById, updateBot, getTotalBotCount,
+  createBot, getBotsByUser, getBotById, updateBot, getTotalBotCount, deleteBotCompletely,
   addMessage, getRecentMessages,
   setMemory, getMemories, deleteMemory,
   getRelationship, updateRelationship,
   getCompanionRelationship, updateCompanionRelationship,
-  getCompanionMemories, setCompanionMemory, recordReplyJudgement,
+  getCompanionMemories, setCompanionMemory,
+  getConversationSummary, updateConversationSummary, recordReplyJudgement,
   getSetting, setSetting,
-  bindWechat, getWechatAccount, getWechatStatus,
+  bindWechat, disconnectWechat, getWechatAccount, getWechatStatus,
   getUserUsage, canCreateBot, canBindWechat, canSendMessage,
   getStats, getMessageStats, getAdminBotRows, recordMessageStat, verifyPassword, getDb,
-  createOrder, getOrderById, confirmOrder, getOrdersByUser, getAllOrders, getOrderStats, PLAN_PRICES
+  createOrder, getOrderById, confirmOrder, getOrdersByUser, getAllOrders, getOrderStats, PLAN_PRICES,
+  getAccountEvents, applyInviteReward, markUserLogin, blacklistUser, restoreUser, deleteUserCompletely
 } from "./database.js";
 
 import { signToken, authMiddleware, adminMiddleware } from "./auth.js";
 
 // Sync WeChat token to OpenClaw accounts directory
-function syncToOpenClaw(token, wxUserId, baseUrl = "https://ilinkai.weixin.qq.com") {
+function openClawAccountPath(token) {
+  const accountId = token.split("@")[0] + "@im.bot";
+  return join(__dirname, "..", ".openclaw-state", "openclaw-weixin", "accounts", accountId + ".json");
+}
+
+function syncToOpenClaw(token, wxUserId, baseUrl = "https://ilinkai.weixin.qq.com", botId = "") {
   try {
-    const dir = join(
-      process.env.OPENCLAW_STATE_DIR || join(__dirname, "..", ".openclaw-state"),
-      "openclaw-weixin", "accounts"
-    );
+    const dir = join(__dirname, "..", ".openclaw-state", "openclaw-weixin", "accounts");
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const accountId = token.split("@")[0] + "@im.bot";
-    const data = { token, savedAt: new Date().toISOString(), baseUrl, userId: wxUserId || "" };
+    const data = { token, savedAt: new Date().toISOString(), baseUrl, userId: wxUserId || "", botId: botId || "" };
     fs.writeFileSync(join(dir, accountId + ".json"), JSON.stringify(data, null, 2), "utf-8");
     const indexFile = join(dir, "..", "accounts.json");
     if (fs.existsSync(indexFile)) {
@@ -43,17 +47,24 @@ function syncToOpenClaw(token, wxUserId, baseUrl = "https://ilinkai.weixin.qq.co
   } catch(e) {}
 }
 
+function removeOpenClawAccount(token) {
+  if (!token) return;
+  try {
+    const file = openClawAccountPath(token);
+    if (fs.existsSync(file)) fs.unlinkSync(file);
+  } catch {}
+}
+
 import { rateLimiter, sanitizeInput, errorHandler, validateBody } from "./security.js";
 
-import { initAI, isReady, chat, chatNonStreaming } from "./ai-adapter.js";
+import { initAI, isReady } from "./ai-adapter.js";
+import { DEFAULT_PERSONALITY, detectUserEmotion } from "./emotional-engine.js";
 import { createCompanionReply, isCompanionUnavailable } from "./companion-client.js";
-import { synthesize } from "./tts.js";
-import { DEFAULT_PERSONALITY, buildSystemPrompt, detectUserEmotion } from "./emotional-engine.js";
-import { consolidateMemory } from "./memory-consolidator.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 const MODEL = "deepseek-v4-flash";
+const COMPANION_FAILURE_REPLY = "服务器异常，暂时没连上模型。请稍后再试。";
 
 // Init
 initDatabase();
@@ -80,10 +91,91 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.static(join(__dirname, "..", "client")));
-app.use("/tts-audio", express.static(join(__dirname, "..", "data", "tts")));
 
 // Health check
 app.get("/api/health", (req, res) => { res.json({ ok: true, time: new Date().toISOString() }); });
+
+app.get("/api/persona-presets", (req, res) => {
+  try {
+    const file = join(__dirname, "..", "data", "persona_presets.json");
+    const presets = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf-8")) : [];
+    res.json({ ok: true, presets });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: "persona presets unavailable" });
+  }
+});
+
+// Current auth contract. Kept before the legacy routes below so the UI gets the
+// account-state and invite fields it expects.
+app.post("/api/auth/register", (req, res) => {
+  const { email, password, inviteCode } = req.body;
+  if (!email || !password || password.length < 6) {
+    return res.status(400).json({ error: "邮箱不能为空，密码至少6位" });
+  }
+  try {
+    createUser(email, password);
+    const user = getUserByEmail(email);
+    if (inviteCode) applyInviteReward(user.id, inviteCode);
+    markUserLogin(user.id, "email_password", email);
+    const freshUser = getUserByEmail(email);
+    const token = signToken(freshUser);
+    return res.json({
+      ok: true,
+      token,
+      user: {
+        id: freshUser.id,
+        email: freshUser.email,
+        role: freshUser.role,
+        inviteCode: freshUser.invite_code,
+        loginMethod: "email_password",
+        loginAccount: email
+      }
+    });
+  } catch (e) {
+    if (e.message && e.message.includes("UNIQUE")) {
+      return res.status(409).json({ error: "该邮箱已注册" });
+    }
+    if (e.code === "INVALID_INVITE_CODE") {
+      return res.status(400).json({ error: "邀请码无效", code: e.code });
+    }
+    return res.status(500).json({ error: "注册失败" });
+  }
+});
+
+app.post("/api/auth/login", (req, res) => {
+  const { email, password } = req.body;
+  const user = getUserByEmail(email);
+  if (!user || !verifyPassword(password, user.salt, user.password_hash)) {
+    return res.status(401).json({ error: "邮箱或密码错误" });
+  }
+  if (user.status === "blacklisted") {
+    return res.status(403).json({ ok: false, error: "账号已被拉黑", code: "ACCOUNT_BLACKLISTED" });
+  }
+  if (user.status === "deleted") {
+    return res.status(401).json({ ok: false, error: "账号不存在", code: "ACCOUNT_DELETED" });
+  }
+  markUserLogin(user.id, "email_password", email);
+  const token = signToken(user);
+  return res.json({
+    ok: true,
+    token,
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      displayName: user.display_name,
+      inviteCode: user.invite_code,
+      loginMethod: "email_password",
+      loginAccount: email
+    }
+  });
+});
+
+app.get("/api/me/usage", authMiddleware, (req, res) => {
+  const usage = getUserUsage(req.user.id);
+  if (!usage) return res.status(404).json({ error: "用户不存在", code: "ACCOUNT_DELETED" });
+  res.json({ ok: true, ...usage });
+});
 
 // ══════════════════════════════════════════
 // 认证路由
@@ -123,10 +215,6 @@ app.get("/api/auth/me", authMiddleware, (req, res) => {
   res.json({ ok: true, user });
 });
 
-app.get("/api/me/usage", authMiddleware, (req, res) => {
-  res.json({ ok: true, ...getUserUsage(req.user.id) });
-});
-
 // ══════════════════════════════════════════
 // 机器人管理
 // ══════════════════════════════════════════
@@ -163,7 +251,8 @@ app.put("/api/bots/:id", authMiddleware, (req, res) => {
 app.delete("/api/bots/:id", authMiddleware, (req, res) => {
   const bot = getBotById(req.params.id);
   if (!bot || bot.user_id !== req.user.id) return res.status(404).json({ error: "机器人不存在" });
-  updateBot(req.params.id, { is_active: 0 });
+  const result = deleteBotCompletely(req.params.id);
+  for (const token of result.tokens || []) removeOpenClawAccount(token);
   res.json({ ok: true });
 });
 
@@ -186,23 +275,31 @@ app.get("/api/bots/:id/public", (req, res) => {
 // 聊天历史
 
 // Bot stats
-app.get("/api/bots/:id/stats", (req, res) => {
+app.get("/api/bots/:id/stats", authMiddleware, (req, res) => {
+  const bot = getBotById(req.params.id);
+  if (!bot || !bot.is_active || bot.user_id !== req.user.id) return res.status(404).json({ error: "not found" });
   try {
     const count = getDb().prepare("SELECT COUNT(*) as c FROM conversations WHERE bot_id = ?").get(req.params.id);
     res.json({ ok: true, msgCount: count.c });
   } catch { res.json({ ok: true, msgCount: 0 }); }
 });
-app.get("/api/bots/:id/history", (req, res) => {
+app.get("/api/bots/:id/history", authMiddleware, (req, res) => {
   const bot = getBotById(req.params.id);
-  if (!bot) return res.status(404).json({ error: "not found" });
-  const messages = getRecentMessages(req.params.id, 50);
+  if (!bot || !bot.is_active || bot.user_id !== req.user.id) return res.status(404).json({ error: "not found" });
+  const senderId = String(req.query.senderId || "").trim();
+  if (!senderId) return res.status(400).json({ error: "senderId required" });
+  const messages = getDb()
+    .prepare("SELECT role, content, emotion, sender_id FROM conversations WHERE bot_id = ? AND sender_id = ? ORDER BY id ASC LIMIT 50")
+    .all(req.params.id, senderId);
   res.json({ ok: true, messages });
 });
 
-app.post("/api/chat/:botId", async (req, res) => {
+app.post("/api/chat/:botId", authMiddleware, async (req, res) => {
   try {
     const bot = getBotById(req.params.botId);
     if (!bot || !bot.is_active) return res.status(404).json({ error: "机器人不存在或已停用" });
+
+    if (bot.user_id !== req.user.id) return res.status(404).json({ error: "机器人不存在" });
     const quota = canSendMessage(bot.user_id);
     if (!quota.ok) {
       return res.status(403).json({ ok: false, error: "本月消息额度已用完", code: "MESSAGE_LIMIT_REACHED", quota: quota.state });
@@ -230,6 +327,7 @@ app.post("/api/chat/:botId", async (req, res) => {
 app.post("/api/webhook/:botId", async (req, res) => {
   const bot = getBotById(req.params.botId);
   if (!bot || !bot.is_active) return res.status(404).json({ error: "机器人不存在" });
+
   const quota = canSendMessage(bot.user_id);
   if (!quota.ok) return res.status(403).json({ ok: false, error: "本月消息额度已用完", code: "MESSAGE_LIMIT_REACHED", quota: quota.state });
 
@@ -245,7 +343,7 @@ app.post("/api/webhook/:botId", async (req, res) => {
       source: "wechat",
       senderId
     });
-    res.json({ ok: true, text: result.reply, texts: result.replyParts || [result.reply], replyParts: result.replyParts || [result.reply], aiEmotion: result.aiEmotion });
+    res.json({ ok: true, text: result.reply, texts: result.replyParts, reply: result.reply, replyParts: result.replyParts, aiEmotion: result.aiEmotion });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }
@@ -276,7 +374,7 @@ app.post("/api/bots/:id/wechat-bind", authMiddleware, (req, res) => {
   setSetting("wechat_" + bot.id + "_userId", wxUserId || "");
   setSetting("wx_bot_" + token.split("@")[0], String(bot.id));
   bindWechat(bot.id, token, finalBaseUrl, wxUserId || "");
-  syncToOpenClaw(token, wxUserId || "", finalBaseUrl);
+  syncToOpenClaw(token, wxUserId || "", finalBaseUrl, bot.id);
   res.json({ ok: true });
 });
 
@@ -358,6 +456,29 @@ app.get("/api/admin/orders", authMiddleware, adminMiddleware, (req, res) => {
   res.json({ ok: true, orders: getAllOrders(), orderStats: getOrderStats() });
 });
 
+app.get("/api/admin/account-events", authMiddleware, adminMiddleware, (req, res) => {
+  res.json({ ok: true, events: getAccountEvents(200) });
+});
+
+app.post("/api/admin/users/:id/blacklist", authMiddleware, adminMiddleware, (req, res) => {
+  const info = blacklistUser(req.params.id, req.body?.reason || "");
+  if (!info.changes) return res.status(404).json({ error: "用户不存在或不能拉黑管理员" });
+  res.json({ ok: true, userId: Number(req.params.id) });
+});
+
+app.post("/api/admin/users/:id/restore", authMiddleware, adminMiddleware, (req, res) => {
+  const info = restoreUser(req.params.id);
+  if (!info.changes) return res.status(404).json({ error: "用户不存在" });
+  res.json({ ok: true, userId: Number(req.params.id) });
+});
+
+app.delete("/api/admin/users/:id", authMiddleware, adminMiddleware, (req, res) => {
+  const result = deleteUserCompletely(Number(req.params.id));
+  if (!result.changes) return res.status(404).json({ error: "用户不存在或不能删除管理员" });
+  for (const token of result.tokens || []) removeOpenClawAccount(token);
+  res.json({ ok: true, deletedUserId: Number(req.params.id) });
+});
+
 // ══════════════════════════════════════════
 // 管理员面板
 // ══════════════════════════════════════════
@@ -390,29 +511,22 @@ app.get("/api/admin/stats", authMiddleware, adminMiddleware, (req, res) => {
   res.json({ ok: true, stats, msgStats, users, bots });
 });
 
-// ══════════════════════════════════════════
-// 聊天引擎
-// ══════════════════════════════════════════
-
 app.get("/api/admin/analytics", authMiddleware, adminMiddleware, (req, res) => {
   const db = getDb();
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
-
   const dau = db.prepare(`
     SELECT COUNT(DISTINCT b.user_id) AS count
     FROM conversations c
     JOIN bots b ON b.id = c.bot_id
     WHERE date(c.timestamp) = ?
   `).get(today).count;
-
   const wau = db.prepare(`
     SELECT COUNT(DISTINCT b.user_id) AS count
     FROM conversations c
     JOIN bots b ON b.id = c.bot_id
     WHERE date(c.timestamp) >= ?
   `).get(weekAgo).count;
-
   const newUsersByDay = db.prepare(`
     SELECT date(created_at) AS date, COUNT(*) AS count
     FROM users
@@ -420,13 +534,15 @@ app.get("/api/admin/analytics", authMiddleware, adminMiddleware, (req, res) => {
     GROUP BY date(created_at)
     ORDER BY date DESC
   `).all(weekAgo);
-
   const totalBots = db.prepare("SELECT COUNT(*) AS count FROM bots WHERE is_active = 1").get().count;
   const boundBots = db.prepare("SELECT COUNT(*) AS count FROM wechat_accounts WHERE is_connected = 1").get().count;
   const planDistribution = db.prepare("SELECT plan, COUNT(*) AS count FROM users GROUP BY plan").all();
-
   res.json({ ok: true, dau, wau, newUsersByDay, totalBots, boundBots, planDistribution });
 });
+
+// ══════════════════════════════════════════
+// 聊天引擎
+// ══════════════════════════════════════════
 
 function normalizePersonality(p) {
   return { ...DEFAULT_PERSONALITY, ...(p || {}), traits: { ...DEFAULT_PERSONALITY.traits, ...((p && p.traits) || {}) } };
@@ -436,7 +552,7 @@ function isIdentityQuestion(text) {
   return /你叫(什么|啥|啥名|什么名字)|你是谁|你的名字|怎么称呼/.test(text);
 }
 
-async function processMessage({ botId, text, personality, source, senderId }) {
+async function legacyNodeProcessDisabled({ botId, text, personality, source, senderId }) {
   const cleanText = sanitizeInput(text);
   if (!cleanText) throw Object.assign(new Error("消息为空"), { code: "EMPTY_MESSAGE" });
   if (!isReady()) throw Object.assign(new Error("AI 未配置"), { code: "AI_NOT_READY" });
@@ -454,7 +570,7 @@ async function processMessage({ botId, text, personality, source, senderId }) {
 
   const relationship = getRelationship(botId);
   const memories = getMemories(botId);
-  const systemPrompt = buildSystemPrompt(p, relationship, memories);
+  const systemPrompt = legacyPromptBuilder(p, relationship, memories);
   const recent = getRecentMessages(botId, 10);
 
   const messagesForAI = [
@@ -471,39 +587,31 @@ async function processMessage({ botId, text, personality, source, senderId }) {
   addMessage(botId, "assistant", fullResponse, aiEmotion, "");
   recordMessageStat(botId);
 
-  try {
-    const msgCount = getDb().prepare("SELECT COUNT(*) AS count FROM conversations WHERE bot_id = ?").get(botId)?.count || 0;
-    if (msgCount > 0 && msgCount % 8 === 0) {
-      setTimeout(() => {
-        consolidateMemory(
-          (msgs) => chatNonStreaming(msgs),
-          getRecentMessages(botId, 12),
-          getMemories(botId)
-        ).then((facts) => {
-          (facts || []).forEach((fact) => setMemory(botId, fact.key, fact.value, 0.6, "auto"));
-        }).catch((e) => {
-          console.error("Memory consolidation failed:", e.message);
-        });
-      }, 1000);
-    }
-  } catch (e) {
-    console.error("Memory consolidation scheduling failed:", e.message);
-  }
-
   return { reply: fullResponse, userEmotion, aiEmotion };
 }
 
-// ══════════════════════════════════════════
-// 启动
-// ══════════════════════════════════════════
+function normalizeReplyParts(parts, fallback = "") {
+  const sourceParts = Array.isArray(parts) ? parts : [];
+  const normalized = sourceParts.map((part) => String(part || "").trim()).filter(Boolean);
+  if (normalized.length) return normalized;
+  const fallbackText = String(fallback || "").trim();
+  return fallbackText ? [fallbackText] : [COMPANION_FAILURE_REPLY];
+}
+
+function getProviderConfig() {
+  return {
+    api_key: getSetting("deepseek_api_key", ""),
+    base_url: process.env.DEEPSEEK_BASE_URL || "",
+    model: MODEL
+  };
+}
 
 async function processCompanionMessage({ botId, text, personality, source, senderId }) {
   const cleanText = sanitizeInput(text);
   if (!cleanText) throw Object.assign(new Error("消息为空"), { code: "EMPTY_MESSAGE" });
-
+  const userKey = String(senderId || `${source || "unknown"}-user`);
   const p = normalizePersonality(personality);
   const userEmotion = detectUserEmotion(cleanText);
-  const userKey = senderId || `${source || "unknown"}-user`;
   addMessage(botId, "user", cleanText, userEmotion, userKey);
 
   try {
@@ -512,28 +620,36 @@ async function processCompanionMessage({ botId, text, personality, source, sende
       user_key: userKey,
       channel: source || "web",
       text: cleanText,
-      recent_messages: getRecentMessages(botId, 50),
-      memories: getCompanionMemories(botId, userKey),
+      personality_config: p,
+      recent_messages: getRecentMessages(botId, 40),
       relationship: getCompanionRelationship(botId, userKey),
-      provider_config: {
-        api_key: getSetting("deepseek_api_key", ""),
-        base_url: process.env.DEEPSEEK_BASE_URL || "",
-        model: MODEL
+      memories: getCompanionMemories(botId, userKey),
+      conversation_summary: getConversationSummary(botId, userKey),
+      provider_config: getProviderConfig(),
+      features: {
+        context_understanding: process.env.COMPANION_CONTEXT_UNDERSTANDING_ENABLED === "1",
+        conversation_state: process.env.COMPANION_CONVERSATION_STATE_ENABLED === "1",
+        reply_rhythm: true
       }
     });
 
     const replyParts = normalizeReplyParts(companion.replyParts, companion.reply);
     const reply = replyParts.join("\n");
     const aiEmotion = detectUserEmotion(reply);
-    let assistantMessage = null;
-    for (const part of replyParts) {
-      assistantMessage = addMessage(botId, "assistant", part, aiEmotion, "");
-    }
-    updateCompanionRelationship(botId, userKey, companion.relationshipDelta || {});
+    const assistantMessageIds = replyParts.map((part) => addMessage(botId, "assistant", part, aiEmotion, userKey).lastInsertRowid);
+
+    updateCompanionRelationship(botId, userKey, companion.relationshipDelta || { intimacy: 0.01, trust: 0.005 });
     for (const memory of companion.memoryCandidates || []) {
-      if (memory?.key && memory?.value) setCompanionMemory(botId, userKey, memory);
+      setCompanionMemory(botId, userKey, memory);
     }
-    recordReplyJudgement(botId, userKey, assistantMessage?.lastInsertRowid || null, companion.judge || {});
+    updateConversationSummary(botId, userKey, {
+      nextReplyTask: companion.directorGoal?.primary_goal || companion.directorGoal?.goal || "",
+      evidence: [
+        { type: "last_user_message", text: cleanText.slice(0, 120) },
+        { type: "last_reply_parts", count: replyParts.length }
+      ]
+    });
+    recordReplyJudgement(botId, userKey, assistantMessageIds.at(-1) || null, companion.judge || {});
     recordMessageStat(botId, 1, replyParts.length);
 
     return {
@@ -542,112 +658,28 @@ async function processCompanionMessage({ botId, text, personality, source, sende
       userEmotion,
       aiEmotion,
       companion: {
-        directorGoal: companion.directorGoal,
-        judge: companion.judge
+        directorGoal: companion.directorGoal || {},
+        judge: companion.judge || {},
+        memoryCount: (companion.memoryCandidates || []).length
       }
     };
   } catch (error) {
     if (!isCompanionUnavailable(error)) throw error;
-    console.warn("Companion core unavailable, using Node fallback:", error.message);
+    console.warn("[companion] unavailable:", error.message);
+    addMessage(botId, "assistant", COMPANION_FAILURE_REPLY, "平静", userKey);
+    recordMessageStat(botId, 1, 1);
+    return {
+      reply: COMPANION_FAILURE_REPLY,
+      replyParts: [COMPANION_FAILURE_REPLY],
+      userEmotion,
+      aiEmotion: "平静"
+    };
   }
-
-  if (!isReady()) throw Object.assign(new Error("AI 未配置"), { code: "AI_NOT_READY" });
-
-  if (isIdentityQuestion(cleanText)) {
-    const reply = "我是" + (p.name || "小伴") + "。";
-    addMessage(botId, "assistant", reply, "平静", "");
-    recordMessageStat(botId);
-    return { reply, userEmotion, aiEmotion: "平静" };
-  }
-
-  const relationship = getRelationship(botId);
-  const memories = getMemories(botId);
-  const systemPrompt = buildSystemPrompt(p, relationship, memories);
-  const recent = getRecentMessages(botId, 10);
-  const messagesForAI = [
-    { role: "system", content: systemPrompt },
-    ...recent.map((message) => ({ role: message.role, content: message.content }))
-  ];
-
-  updateRelationship(botId, { intimacy: 0.01, trust: 0.005, mood: userEmotion });
-
-  let fullResponse = "";
-  await chat(messagesForAI, (token) => { fullResponse += token; });
-
-  const aiEmotion = detectUserEmotion(fullResponse);
-  const replyParts = normalizeReplyParts([], fullResponse);
-  const reply = replyParts.join("\n");
-  for (const part of replyParts) {
-    addMessage(botId, "assistant", part, aiEmotion, "");
-  }
-  recordMessageStat(botId, 1, replyParts.length);
-
-  return { reply, replyParts, userEmotion, aiEmotion };
-}
-
-function normalizeReplyParts(parts, fallbackReply) {
-  const normalized = Array.isArray(parts)
-    ? parts.map((part) => String(part || "").trim()).filter(Boolean)
-    : [];
-  if (normalized.length) return normalized.slice(0, 4);
-  const fallback = String(fallbackReply || "").trim();
-  if (!fallback) return [];
-
-  const fromLines = fallback
-    .split(/\r?\n+/)
-    .map((part) => part.replace(/[ \t]+/g, " ").trim())
-    .filter(Boolean);
-  let splitParts = fromLines.length > 1
-    ? fromLines
-    : fallback.split(/(?<=[。！？!?])\s*/).map((part) => part.trim()).filter(Boolean);
-  if (splitParts.length <= 1 && fallback.length >= 18) {
-    splitParts = fallback.split(/[，,；;]/).map((part) => part.trim()).filter(Boolean);
-  }
-  if (splitParts.length <= 1 && fallback.length >= 28) {
-    const midpoint = Math.floor(fallback.length / 2);
-    splitParts = [fallback.slice(0, midpoint).trim(), fallback.slice(midpoint).trim()].filter(Boolean);
-  }
-  return splitParts.slice(0, 4);
 }
 
 // ══════════════════════════════════════════
-// 语音合成 (TTS)
+// 启动
 // ══════════════════════════════════════════
-
-app.post("/api/tts", async (req, res) => {
-  try {
-    const { text, emotion } = req.body;
-    if (!text) return res.status(400).json({ error: "缺少text参数" });
-    const { stream, contentType } = await synthesize({ text, emotion: emotion || "平静" });
-    res.setHeader("Content-Type", contentType);
-    stream.pipe(res);
-    stream.on("error", () => { if (!res.headersSent) res.status(500).end(); });
-  } catch (e) {
-    res.status(500).json({ error: "TTS 合成失败" });
-  }
-});
-
-app.post("/api/tts-url", async (req, res) => {
-  try {
-    const { text, emotion, baseUrl } = req.body;
-    if (!text) return res.status(400).json({ error: "缺少text参数" });
-    const { stream } = await synthesize({ text, emotion: emotion || "平静" });
-    const chunks = [];
-    stream.on("data", (c) => chunks.push(c));
-    stream.on("end", () => {
-      const buf = Buffer.concat(chunks);
-      const filename = `v_${Date.now()}_${Math.random().toString(36).slice(2,6)}.mp3`;
-      const dest = join(__dirname, "..", "data", "tts", filename);
-      fs.mkdirSync(join(__dirname, "..", "data", "tts"), { recursive: true });
-      fs.writeFileSync(dest, buf);
-      const prefix = (baseUrl || "").replace(/\/+$/, "");
-      res.json({ ok: true, url: prefix + "/tts-audio/" + filename, duration: Math.round(buf.length / 16 * 10) });
-    });
-    stream.on("error", () => { if (!res.headersSent) res.status(500).json({ error: "合成失败" }); });
-  } catch (e) {
-    res.status(500).json({ error: "TTS 合成失败" });
-  }
-});
 
 app.use(errorHandler);
 
